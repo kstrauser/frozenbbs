@@ -16,10 +16,7 @@ pub fn add(
         short_name: short_name.trim(),
         long_name: long_name.trim(),
     };
-    match new_user.validate() {
-        Ok(_) => (),
-        Err(e) => return Err(e),
-    };
+    new_user.validate()?;
 
     Ok(diesel::insert_into(table)
         .values(&new_user)
