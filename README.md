@@ -1,5 +1,5 @@
 # Frozen BBS, a message board for Meshtastic
- 
+
 _NOTE: This doesn't do anything yet. I'm not being modest. It doesn't even have code to connect to Meshtastic yet. It will!_
 
 Frozen intends to be a radio BBS optimized for slow connections. This is the very beginning of the project.
@@ -14,13 +14,15 @@ Clone this repo. Run `cargo build`. Ta-da: now it's built.
 
 ## Getting started
 
-Create a `.env` file telling Frozen BBS where to put its database file. You can create this file with just, like:
+Install `diesel_cli` and create a `.env` file telling Frozen BBS where to put its database file. You can do these with:
 
 ```shell
-$ just db_env $HOME/Library/Application\ Support/frozenbbs/frozen.db
+$ just setup
+Installed diesel.
+Configured .env.
 ```
 
-Make sure that directory exists! Now, run the database migrations to create the tables:
+Now, run the database migrations to create the tables:
 
 ```shell
 $ just db_migrate
@@ -102,6 +104,6 @@ Copyright (C) 2024 Kirk Strauser
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.

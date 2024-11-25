@@ -1,13 +1,35 @@
 bbscmd := "target/debug/frozenbbs"
-dbfile := `cut -d= -f2 .env 2>/dev/null || echo`
+dbfile := `cut -d= -f2 .env 2>/dev/null || echo \"\"`
 
-# Create the .env file pointing to the database file
-db_env path_to_dbfile:
-    echo 'DATABASE_URL="{{ path_to_dbfile }}"' > .env
+setup:
+    #!/bin/bash
+
+    if which -s diesel; then
+        echo Diesel is already installed.
+    else
+        cargo install diesel_cli
+        echo Installed diesel.
+    fi
+
+    if [ '{{ dbfile }}' != '""' ]; then
+        echo .env is already configured.
+    else
+        if [ {{ os() }} = macos ]; then
+            newdbdir="{{ home_dir() }}/Library/Application Support/frozenbbs"
+        elif [ {{ os() }} = linux ]; then
+            newdbdir="{{ home_dir() }}/.local/share/frozenbbs"
+        else
+            echo Implement me.
+            exit 1
+        fi
+        mkdir -p "$newdbdir"
+        echo 'DATABASE_URL="'$newdbdir/frozen.db'"' > .env
+        echo Configured .env.
+    fi
 
 # Connect to the database
 db_shell:
-    sqlite3 "{{ dbfile }}"
+    sqlite3 {{ dbfile }}
 
 # Delete the database
 [confirm]
