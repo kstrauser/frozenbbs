@@ -12,10 +12,7 @@ pub fn add(conn: &mut SqliteConnection, user_id: i32, board_id: i32, body: &str)
         board_id,
         body,
     };
-    match new_post.validate() {
-        Ok(_) => (),
-        Err(e) => return Err(e),
-    };
+    new_post.validate()?;
 
     Ok(diesel::insert_into(table)
         .values(&new_post)

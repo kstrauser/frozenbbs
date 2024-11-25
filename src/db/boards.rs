@@ -10,10 +10,7 @@ pub fn add(conn: &mut SqliteConnection, name: &str, description: &str) -> Result
         name: name.trim(),
         description: description.trim(),
     };
-    match new_board.validate() {
-        Ok(_) => (),
-        Err(e) => return Err(e),
-    };
+    new_board.validate()?;
 
     Ok(diesel::insert_into(table)
         .values(&new_board)
