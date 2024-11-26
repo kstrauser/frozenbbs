@@ -1,19 +1,28 @@
-use crate::db::{boards, posts, users};
+use crate::db::{boards, posts};
 use diesel::SqliteConnection;
+use std::collections::HashMap;
 use std::io::{self, Write as _};
+use time::macros::datetime;
+use time::PrimitiveDateTime;
 
 const FAKEBOARD: i32 = -1;
 
 /// The user's global state
+#[derive(Debug)]
 struct UserState {
     board: i32,
+    last_seen: HashMap<i32, PrimitiveDateTime>,
 }
 
-pub fn client(connection: &mut SqliteConnection, node_id: &String) {
+pub fn client(connection: &mut SqliteConnection, node_id: &str) {
     let mut stdout = io::stdout();
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
-    let mut state = UserState { board: FAKEBOARD };
+    let mut state = UserState {
+        board: FAKEBOARD,
+        last_seen: HashMap::new(),
+    };
+    dbg!(&node_id);
 
     help();
 
@@ -70,6 +79,22 @@ pub fn client(connection: &mut SqliteConnection, node_id: &String) {
             }
             println!("Entering board {}", num);
             state.board = num;
+            state.last_seen.insert(num, datetime!(1900-01-01 00:00:00));
+            dbg!(&state);
+            continue;
+        }
+
+        if lower == "r" {
+            if let Ok((post, user)) = posts::after(
+                connection,
+                state.board,
+                *state.last_seen.get(&state.board).unwrap(),
+            ) {
+                dbg!((&post, &user));
+                state.last_seen.insert(state.board, post.created_at);
+            } else {
+                println!("There are no more posts in this board.");
+            }
             continue;
         }
 

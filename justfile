@@ -48,11 +48,15 @@ db_dump:
 db_restore: db_nuke
     cat backup.sql | sqlite3 {{ dbfile }}
 
-db_init:
-    {{ bbscmd }} admin user add --id !cafebead --short FRZB --long "Frozen BBS"
+db_init: db_migrate
+    {{ bbscmd }} admin user add --node-id !cafebead --short FRZB --long "Frozen BBS"
+    {{ bbscmd }} admin user add -n !1234fedc -s 1234 -l 'Jerk' -j
+    {{ bbscmd }} admin user add -n !1234abcd -s 4567 -l 'OK person'
     {{ bbscmd }} admin board add --name "Board Talk" --description "Discussing this BBS itself."
     {{ bbscmd }} admin board add --name "Meshtastic" --description "How did we get here?"
     {{ bbscmd }} admin board add --name "Local" --description "Things happening nearby."
     {{ bbscmd }} admin post add --board-id 1 --node-id !cafebead --content "First post."
-    {{ bbscmd }} admin user add -n !1234abcd -s 1234 -l 'OK person'
-    {{ bbscmd }} admin user add -n !1234fedc -s 4567 -l 'Jerk' -j
+    sleep 1
+    {{ bbscmd }} admin post add --board-id 1 --node-id !1234fedc --content "LOL I'm a jerk look at me!"
+    sleep 1
+    {{ bbscmd }} admin post add --board-id 1 --node-id !1234abcd --content "Third post."
