@@ -1,8 +1,10 @@
 pub mod boards;
-mod models;
 pub mod posts;
-mod schema;
 pub mod users;
+pub use models::{Board, Post, User};
+
+mod models;
+mod schema;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use dotenvy::dotenv;
