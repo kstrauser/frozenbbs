@@ -54,3 +54,5 @@ db_init:
     {{ bbscmd }} admin board add --name "Meshtastic" --description "How did we get here?"
     {{ bbscmd }} admin board add --name "Local" --description "Things happening nearby."
     {{ bbscmd }} admin post add --board-id 1 --node-id !cafebead --content "First post."
+    {{ bbscmd }} admin user add -n !1234abcd -s 1234 -l 'OK person'
+    {{ bbscmd }} admin user add -n !1234fedc -s 4567 -l 'Jerk' -j

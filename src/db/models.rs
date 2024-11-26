@@ -28,7 +28,7 @@ pub struct NewBoard<'a> {
     pub description: &'a str,
 }
 
-#[derive(Queryable, Selectable)]
+#[derive(Debug, Queryable, Selectable)]
 #[diesel(belongs_to(Board))]
 #[diesel(table_name = crate::db::schema::posts)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
@@ -57,6 +57,7 @@ pub struct User {
     pub node_id: String,
     pub short_name: String,
     pub long_name: String,
+    pub jackass: bool,
     pub created_at: PrimitiveDateTime,
     pub last_seen_at: PrimitiveDateTime,
 }
@@ -70,4 +71,5 @@ pub struct NewUser<'a> {
     pub short_name: &'a str,
     #[validate(length(min = 1, max = 40))]
     pub long_name: &'a str,
+    pub jackass: &'a bool,
 }
