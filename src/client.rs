@@ -1,4 +1,6 @@
 use crate::db::{boards, posts};
+use crate::db::{Post, User};
+use crate::formatted_useconds;
 use diesel::SqliteConnection;
 use std::collections::HashMap;
 use std::io::{self, Write as _};
@@ -12,6 +14,27 @@ struct UserState {
     last_seen: HashMap<i32, i64>,
 }
 
+mod board_list {
+    const COMMAND: &str = "b";
+    const HELP: &str = "Board list";
+
+    fn available(state: &super::UserState) -> bool {
+        true
+    }
+
+    fn matches(cmd: &str) -> bool {
+        cmd.starts_with("b") && cmd.len() == 1
+    }
+
+    fn execute(conn: &mut super::SqliteConnection, mut state: &super::UserState, cmd: &str) {
+        println!("Boards:");
+        println!();
+        for board in super::boards::all(conn) {
+            println!("#{} {}: {}", board.id, board.name, board.description);
+        }
+    }
+}
+
 pub fn client(connection: &mut SqliteConnection, node_id: &str) {
     let mut stdout = io::stdout();
     let mut buffer = String::new();
@@ -22,7 +45,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
     };
     dbg!(&node_id);
 
-    help();
+    help(&state);
 
     loop {
         println!();
@@ -82,13 +105,27 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
             continue;
         }
 
-        if lower == "r" {
+        if lower == "n" {
             if let Ok((post, user)) = posts::after(
                 connection,
                 state.board,
                 *state.last_seen.get(&state.board).unwrap(),
             ) {
-                dbg!((&post, &user));
+                post_print(&post, &user);
+                state.last_seen.insert(state.board, post.created_at_us);
+            } else {
+                println!("There are no more posts in this board.");
+            }
+            continue;
+        }
+
+        if lower == "p" {
+            if let Ok((post, user)) = posts::before(
+                connection,
+                state.board,
+                *state.last_seen.get(&state.board).unwrap(),
+            ) {
+                post_print(&post, &user);
                 state.last_seen.insert(state.board, post.created_at_us);
             } else {
                 println!("There are no more posts in this board.");
@@ -97,17 +134,36 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
         }
 
         println!("Unknown command.");
-        help();
+        help(&state);
     }
 }
 
-fn help() {
+fn post_print(post: &Post, user: &User) {
+    println!(
+        "From: {}/{}:{}",
+        user.node_id, user.short_name, user.long_name
+    );
+    println!("At  : {}", formatted_useconds(post.created_at_us));
+    println!("Msg : {}", post.body);
+}
+
+fn help(state: &UserState) {
     println!(
         "
 Commands:
 
 B : Board list
-Bn: Enter board #n
+Bn: Enter board #n"
+    );
+    if state.board != FAKEBOARD {
+        println!(
+            "\
+P : Read the previous message in the board
+N : Read the next message in the board"
+        );
+    }
+    println!(
+        "\
 Q : Quit"
     );
 }
