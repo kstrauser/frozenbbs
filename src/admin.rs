@@ -2,23 +2,35 @@ use crate::db::{boards, posts, users};
 use crate::formatted_tstamp;
 use diesel::SqliteConnection;
 
+// Today, for now, it's OK to fail when running user commands! A human will see the results,
+// including an explanatory traceback. It doesn't have to be pretty to be useful.
+
 pub fn user_list(connection: &mut SqliteConnection) {
     println!(
         "\
 # BBS users
 
-| Created at          | Last seen at        | Node ID   | Name | Long name                                |
-| ------------------- | ------------------- | --------- | ---- | ---------------------------------------- |"
+| Created at          | Last seen at        | Node ID    | Name | Long name                                |
+| ------------------- | ------------------- | ---------- | ---- | ---------------------------------------- |"
     );
+    let mut jackasses = false;
     for user in users::all(connection) {
         println!(
-            "| {} | {} | {} | {:4} | {:40} |",
+            "| {} | {} | {}{} | {:4} | {:40} |",
             formatted_tstamp(user.created_at),
             formatted_tstamp(user.last_seen_at),
             user.node_id,
+            if user.jackass { "*" } else { " " },
             user.short_name,
             user.long_name,
         );
+        if user.jackass {
+            jackasses = true;
+        }
+    }
+    if jackasses {
+        println!();
+        println!("Users marked with '*' are jackasses.");
     }
 }
 
@@ -27,9 +39,20 @@ pub fn user_add(
     node_id: &str,
     short_name: &str,
     long_name: &str,
+    jackass: &bool,
 ) {
-    let user = users::add(connection, node_id, short_name, long_name).unwrap();
+    let user = users::add(connection, node_id, short_name, long_name, jackass).unwrap();
     println!("Created user #{}, '{}'", user.id, user.node_id);
+}
+
+pub fn user_ban(connection: &mut SqliteConnection, node_id: &str) {
+    let user = users::ban(connection, node_id).unwrap();
+    println!("Banned user #{}, '{}'", user.id, user.node_id);
+}
+
+pub fn user_unban(connection: &mut SqliteConnection, node_id: &str) {
+    let user = users::unban(connection, node_id).unwrap();
+    println!("Unbanned user #{}, '{}'", user.id, user.node_id);
 }
 
 pub fn board_list(connection: &mut SqliteConnection) {

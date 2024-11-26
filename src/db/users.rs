@@ -10,11 +10,13 @@ pub fn add(
     node_id: &str,
     short_name: &str,
     long_name: &str,
+    jackass: &bool,
 ) -> Result<User> {
     let new_user = NewUser {
         node_id: node_id.trim(),
         short_name: short_name.trim(),
         long_name: long_name.trim(),
+        jackass,
     };
     new_user.validate()?;
 
@@ -31,6 +33,17 @@ pub fn all(conn: &mut SqliteConnection) -> Vec<User> {
         .order(dsl::created_at)
         .load(conn)
         .expect("Error loading users")
+}
+
+pub fn ban(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
+    diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))
+        .set(dsl::jackass.eq(true))
+        .get_result(conn)
+}
+pub fn unban(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
+    diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))
+        .set(dsl::jackass.eq(false))
+        .get_result(conn)
 }
 
 pub fn get(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {

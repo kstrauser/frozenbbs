@@ -50,18 +50,32 @@ enum AdminCommands {
 enum AdminUserCommands {
     /// List all users.
     List {},
-
     /// Add a new user.
     Add {
         /// User's node ID in !hex format.
         #[arg(short, long)]
-        id: String,
+        node_id: String,
         /// User's 4-byte short name.
         #[arg(short, long)]
         short: String,
         /// User's long name.
         #[arg(short, long)]
         long: String,
+        /// The user is a jackass.
+        #[arg(short, long)]
+        jackass: bool,
+    },
+    /// Set the user's jackass bit.
+    Ban {
+        /// User's node ID in !hex format
+        #[arg(short, long)]
+        node_id: String,
+    },
+    /// Unset the user's jackass bit.
+    Unban {
+        /// User's node ID in !hex format
+        #[arg(short, long)]
+        node_id: String,
     },
 }
 
@@ -113,8 +127,15 @@ fn main() {
         Some(Subsystems::Admin { admin_command }) => match admin_command {
             Some(AdminCommands::User { user_command }) => match user_command {
                 Some(AdminUserCommands::List {}) => admin::user_list(connection),
-                Some(AdminUserCommands::Add { id, short, long }) => {
-                    admin::user_add(connection, id, short, long)
+                Some(AdminUserCommands::Add {
+                    node_id,
+                    short,
+                    long,
+                    jackass,
+                }) => admin::user_add(connection, node_id, short, long, jackass),
+                Some(AdminUserCommands::Ban { node_id }) => admin::user_ban(connection, node_id),
+                Some(AdminUserCommands::Unban { node_id }) => {
+                    admin::user_unban(connection, node_id)
                 }
                 None => {}
             },

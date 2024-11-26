@@ -25,6 +25,7 @@ diesel::table! {
         node_id -> Text,
         short_name -> Text,
         long_name -> Text,
+        jackass -> Bool,
         created_at -> Timestamp,
         last_seen_at -> Timestamp,
     }
