@@ -35,3 +35,8 @@ pub fn get(conn: &mut SqliteConnection, board_id: i32) -> QueryResult<Board> {
         .filter(dsl::id.eq(board_id))
         .first(conn)
 }
+
+/// Get the number of configured boards
+pub fn count(conn: &mut SqliteConnection) -> i32 {
+    all(conn).into_iter().map(|x| x.id).max().unwrap()
+}
