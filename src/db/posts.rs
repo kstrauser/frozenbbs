@@ -4,6 +4,7 @@ use super::schema::posts::table;
 use super::schema::users::dsl as users_dsl;
 use super::Result;
 use diesel::prelude::*;
+use time::PrimitiveDateTime;
 use validator::Validate as _;
 
 pub fn add(conn: &mut SqliteConnection, user_id: i32, board_id: i32, body: &str) -> Result<Post> {
@@ -29,4 +30,20 @@ pub fn in_board(conn: &mut SqliteConnection, board_id: i32) -> Vec<(Post, User)>
         .order(posts_dsl::created_at)
         .load::<(Post, User)>(conn)
         .expect("Error loading posts")
+}
+
+pub fn after(
+    conn: &mut SqliteConnection,
+    board_id: i32,
+    last_timestamp: PrimitiveDateTime,
+) -> QueryResult<(Post, User)> {
+    posts_dsl::posts
+        .inner_join(users_dsl::users)
+        .select((Post::as_select(), User::as_select()))
+        .filter(posts_dsl::board_id.eq(board_id))
+        .filter(posts_dsl::created_at.gt(last_timestamp))
+        .filter(users_dsl::jackass.eq(false))
+        .order(posts_dsl::created_at)
+        .limit(1)
+        .first::<(Post, User)>(conn)
 }
