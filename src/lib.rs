@@ -1,12 +1,20 @@
 pub mod admin;
 pub mod client;
 pub mod db;
+use chrono::{Local, TimeZone, Utc};
 
-use time::{format_description::BorrowedFormatItem, macros::format_description};
+/// Get the number of microseconds since the Unix epoch.
+pub fn now_as_useconds() -> i64 {
+    Utc::now().timestamp_micros()
+}
 
-const TSTAMP_FORMAT: &[BorrowedFormatItem<'_>] =
-    format_description!("[year]-[month]-[day]@[hour]:[minute]:[second]");
-
-pub fn formatted_tstamp(tstamp: time::PrimitiveDateTime) -> String {
-    tstamp.format(&TSTAMP_FORMAT).unwrap()
+/// Format the number of microseconds since the Unix epoch as a local timestamp.
+pub fn formatted_useconds(dstamp: i64) -> String {
+    format!(
+        "{}",
+        Local
+            .timestamp_micros(dstamp)
+            .unwrap()
+            .format("%Y-%m-%dT%H:%M:%S")
+    )
 }

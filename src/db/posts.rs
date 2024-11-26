@@ -3,8 +3,8 @@ use super::schema::posts::dsl as posts_dsl;
 use super::schema::posts::table;
 use super::schema::users::dsl as users_dsl;
 use super::Result;
+use crate::now_as_useconds;
 use diesel::prelude::*;
-use time::PrimitiveDateTime;
 use validator::Validate as _;
 
 pub fn add(conn: &mut SqliteConnection, user_id: i32, board_id: i32, body: &str) -> Result<Post> {
@@ -12,6 +12,7 @@ pub fn add(conn: &mut SqliteConnection, user_id: i32, board_id: i32, body: &str)
         user_id,
         board_id,
         body,
+        created_at_us: &now_as_useconds(),
     };
     new_post.validate()?;
 
@@ -27,7 +28,7 @@ pub fn in_board(conn: &mut SqliteConnection, board_id: i32) -> Vec<(Post, User)>
         .inner_join(users_dsl::users)
         .select((Post::as_select(), User::as_select()))
         .filter(posts_dsl::board_id.eq(board_id))
-        .order(posts_dsl::created_at)
+        .order(posts_dsl::created_at_us)
         .load::<(Post, User)>(conn)
         .expect("Error loading posts")
 }
@@ -35,15 +36,15 @@ pub fn in_board(conn: &mut SqliteConnection, board_id: i32) -> Vec<(Post, User)>
 pub fn after(
     conn: &mut SqliteConnection,
     board_id: i32,
-    last_timestamp: PrimitiveDateTime,
+    last_timestamp: i64,
 ) -> QueryResult<(Post, User)> {
     posts_dsl::posts
         .inner_join(users_dsl::users)
         .select((Post::as_select(), User::as_select()))
         .filter(posts_dsl::board_id.eq(board_id))
-        .filter(posts_dsl::created_at.gt(last_timestamp))
+        .filter(posts_dsl::created_at_us.gt(last_timestamp))
         .filter(users_dsl::jackass.eq(false))
-        .order(posts_dsl::created_at)
+        .order(posts_dsl::created_at_us)
         .limit(1)
         .first::<(Post, User)>(conn)
 }

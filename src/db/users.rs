@@ -2,6 +2,7 @@ use super::models::{NewUser, User};
 use super::schema::users::dsl;
 use super::schema::users::table;
 use super::Result;
+use crate::now_as_useconds;
 use diesel::prelude::*;
 use validator::Validate as _;
 
@@ -12,11 +13,14 @@ pub fn add(
     long_name: &str,
     jackass: &bool,
 ) -> Result<User> {
+    let now = now_as_useconds();
     let new_user = NewUser {
         node_id: node_id.trim(),
         short_name: short_name.trim(),
         long_name: long_name.trim(),
         jackass,
+        created_at_us: &now,
+        last_seen_at_us: &now,
     };
     new_user.validate()?;
 
@@ -30,7 +34,7 @@ pub fn add(
 pub fn all(conn: &mut SqliteConnection) -> Vec<User> {
     dsl::users
         .select(User::as_select())
-        .order(dsl::created_at)
+        .order(dsl::created_at_us)
         .load(conn)
         .expect("Error loading users")
 }

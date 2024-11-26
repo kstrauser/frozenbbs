@@ -3,7 +3,7 @@ CREATE TABLE posts (
   board_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
   body TEXT NOT NULL,
-  created_at TIMESTAMP UNIQUE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at_us BIGINT UNIQUE NOT NULL,
   FOREIGN KEY(user_id) REFERENCES users(id),
   FOREIGN KEY(board_id) REFERENCES boards(id)
 )

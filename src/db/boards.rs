@@ -2,6 +2,7 @@ use super::models::{Board, NewBoard};
 use super::schema::boards::dsl;
 use super::schema::boards::table;
 use super::Result;
+use crate::now_as_useconds;
 use diesel::prelude::*;
 use validator::Validate as _;
 
@@ -9,6 +10,7 @@ pub fn add(conn: &mut SqliteConnection, name: &str, description: &str) -> Result
     let new_board = NewBoard {
         name: name.trim(),
         description: description.trim(),
+        created_at_us: &now_as_useconds(),
     };
     new_board.validate()?;
 

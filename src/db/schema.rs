@@ -5,7 +5,7 @@ diesel::table! {
         id -> Integer,
         name -> Text,
         description -> Text,
-        created_at -> Timestamp,
+        created_at_us -> BigInt,
     }
 }
 
@@ -15,7 +15,7 @@ diesel::table! {
         board_id -> Integer,
         user_id -> Integer,
         body -> Text,
-        created_at -> Timestamp,
+        created_at_us -> BigInt,
     }
 }
 
@@ -26,8 +26,8 @@ diesel::table! {
         short_name -> Text,
         long_name -> Text,
         jackass -> Bool,
-        created_at -> Timestamp,
-        last_seen_at -> Timestamp,
+        created_at_us -> BigInt,
+        last_seen_at_us -> BigInt,
     }
 }
 
