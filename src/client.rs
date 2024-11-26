@@ -2,8 +2,6 @@ use crate::db::{boards, posts};
 use diesel::SqliteConnection;
 use std::collections::HashMap;
 use std::io::{self, Write as _};
-use time::macros::datetime;
-use time::PrimitiveDateTime;
 
 const FAKEBOARD: i32 = -1;
 
@@ -11,7 +9,7 @@ const FAKEBOARD: i32 = -1;
 #[derive(Debug)]
 struct UserState {
     board: i32,
-    last_seen: HashMap<i32, PrimitiveDateTime>,
+    last_seen: HashMap<i32, i64>,
 }
 
 pub fn client(connection: &mut SqliteConnection, node_id: &str) {
@@ -79,7 +77,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
             }
             println!("Entering board {}", num);
             state.board = num;
-            state.last_seen.insert(num, datetime!(1900-01-01 00:00:00));
+            state.last_seen.insert(num, 0);
             dbg!(&state);
             continue;
         }
@@ -91,7 +89,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
                 *state.last_seen.get(&state.board).unwrap(),
             ) {
                 dbg!((&post, &user));
-                state.last_seen.insert(state.board, post.created_at);
+                state.last_seen.insert(state.board, post.created_at_us);
             } else {
                 println!("There are no more posts in this board.");
             }

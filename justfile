@@ -56,7 +56,5 @@ db_init: db_migrate
     {{ bbscmd }} admin board add --name "Meshtastic" --description "How did we get here?"
     {{ bbscmd }} admin board add --name "Local" --description "Things happening nearby."
     {{ bbscmd }} admin post add --board-id 1 --node-id !cafebead --content "First post."
-    sleep 1
     {{ bbscmd }} admin post add --board-id 1 --node-id !1234fedc --content "LOL I'm a jerk look at me!"
-    sleep 1
     {{ bbscmd }} admin post add --board-id 1 --node-id !1234abcd --content "Third post."
