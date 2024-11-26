@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod client;
 pub mod db;
 
 use time::{format_description::BorrowedFormatItem, macros::format_description};
