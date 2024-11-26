@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use frozenbbs::{admin, db};
+use frozenbbs::{admin, client, db};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
@@ -10,6 +10,12 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Subsystems {
+    /// Connect with a client
+    Client {
+        /// User's node ID in !hex format.
+        #[arg(short, long)]
+        node_id: String,
+    },
     /// Admin commands
     #[command(arg_required_else_help = true)]
     Admin {
@@ -132,6 +138,7 @@ fn main() {
             },
             None => {}
         },
+        Some(Subsystems::Client { node_id }) => client::client(connection, node_id),
         None => {}
     }
 }
