@@ -1,4 +1,4 @@
-use crate::db::{boards, posts};
+use crate::db::{boards, posts, users};
 use crate::db::{Post, User};
 use crate::formatted_useconds;
 use diesel::SqliteConnection;
@@ -10,7 +10,8 @@ const FAKEBOARD: i32 = -1;
 
 /// The user's global state
 #[derive(Debug)]
-struct UserState {
+struct UserState<'a> {
+    node_id: &'a str,
     board: i32,
     last_seen: HashMap<i32, i64>,
 }
@@ -77,6 +78,12 @@ fn board_next(conn: &mut SqliteConnection, state: &mut UserState, _args: Vec<&st
     }
 }
 
+fn board_write(conn: &mut SqliteConnection, state: &mut UserState, args: Vec<&str>) {
+    let user = users::get(conn, state.node_id).unwrap();
+    let post = posts::add(conn, user.id, state.board, args[0]).unwrap();
+    println!("Published at {}.", formatted_useconds(post.created_at_us));
+}
+
 fn state_describe(conn: &mut SqliteConnection, state: &mut UserState, _args: Vec<&str>) {
     if state.board == FAKEBOARD {
         println!("You are not in a board.");
@@ -84,7 +91,6 @@ fn state_describe(conn: &mut SqliteConnection, state: &mut UserState, _args: Vec
     }
     let board = boards::get(conn, state.board).unwrap();
     println!("You are in board #{}: {}", state.board, board.name);
-    println!();
 }
 
 /// Return whether the user is in a message board.
@@ -111,66 +117,67 @@ struct Command {
     func: fn(&mut SqliteConnection, &mut UserState, Vec<&str>),
 }
 
+fn make_pattern(pattern: &str) -> Regex {
+    RegexBuilder::new(format!("^{}$", pattern).as_str())
+        .case_insensitive(false)
+        .build()
+        .unwrap()
+}
+
 fn setup() -> Vec<Command> {
     vec![
         Command {
             arg: "B".to_string(),
             help: "Board list".to_string(),
-            pattern: RegexBuilder::new(r"^b$")
-                .case_insensitive(false)
-                .build()
-                .unwrap(),
+            pattern: make_pattern("^b$"),
             available: available_always,
             func: board_lister,
         },
         Command {
             arg: "Bn".to_string(),
             help: "Enter board #n".to_string(),
-            pattern: RegexBuilder::new(r"^b(\d+)$")
-                .case_insensitive(false)
-                .build()
-                .unwrap(),
+            pattern: make_pattern(r"b(\d+)"),
             available: available_always,
             func: board_enter,
         },
         Command {
             arg: "P".to_string(),
             help: "Read the previous message in the board".to_string(),
-            pattern: RegexBuilder::new(r"^p$")
-                .case_insensitive(false)
-                .build()
-                .unwrap(),
+            pattern: make_pattern("p"),
             available: available_in_board,
             func: board_previous,
         },
         Command {
             arg: "N".to_string(),
             help: "Read the next message in the board".to_string(),
-            pattern: RegexBuilder::new(r"^n$")
-                .case_insensitive(false)
-                .build()
-                .unwrap(),
+            pattern: make_pattern("n"),
             available: available_in_board,
             func: board_next,
         },
         Command {
+            arg: "W msg".to_string(),
+            help: "Write a new message".to_string(),
+            pattern: make_pattern(r"w(.{1,})"),
+            available: available_in_board,
+            func: board_write,
+        },
+        Command {
             arg: "?".to_string(),
             help: "Tell me where I am".to_string(),
-            pattern: RegexBuilder::new(r"^\?$")
-                .case_insensitive(false)
-                .build()
-                .unwrap(),
+            pattern: make_pattern(r"\?"),
             available: available_always,
             func: state_describe,
         },
     ]
 }
 
+/// Run a session from the local terminal.
 pub fn client(connection: &mut SqliteConnection, node_id: &str) {
     let mut stdout = io::stdout();
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
     let mut state = UserState {
+        node_id,
         board: FAKEBOARD,
         last_seen: HashMap::new(),
     };
@@ -200,12 +207,16 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
                 continue;
             }
             if let Some(captures) = command.pattern.captures(trimmed) {
-                let mut groups = captures.iter();
-                groups.next();
                 (command.func)(
                     connection,
                     &mut state,
-                    groups.flatten().map(|x| x.as_str()).collect(),
+                    // Collect all of the matched groups in the pattern into a vector of strs
+                    captures
+                        .iter()
+                        .skip(1)
+                        .flatten()
+                        .map(|x| x.as_str().trim())
+                        .collect(),
                 );
                 continue 'outer;
             }
@@ -216,25 +227,24 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
             return;
         }
 
-        println!("Unknown command.");
+        println!("That's not an available command here.");
         help(&state, &commands);
     }
 }
 
 /// Show the user all commands available to them right now.
 fn help(state: &UserState, commands: &Vec<Command>) {
-    println!(
-        "
-Commands:
-"
-    );
+    println!("\nCommands:\n");
+    let width = commands
+        .iter()
+        .filter(|x| (x.available)(state))
+        .map(|x| x.arg.len())
+        .max()
+        .unwrap();
     for command in commands {
         if (command.available)(state) {
-            println!("{:2} : {}", command.arg, command.help);
+            println!("{:width$} : {}", command.arg, command.help);
         }
     }
-    println!(
-        "\
-Q : Quit"
-    );
+    println!("{:width$} : Quit", "Q");
 }
