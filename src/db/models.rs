@@ -81,6 +81,7 @@ pub struct User {
     pub short_name: String,
     pub long_name: String,
     pub jackass: bool,
+    pub in_board: Option<i32>,
     pub created_at_us: i64,
     pub last_seen_at_us: i64,
 }
