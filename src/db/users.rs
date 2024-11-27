@@ -31,6 +31,17 @@ pub fn add(
         .expect("Error saving new user"))
 }
 
+pub fn update(conn: &mut SqliteConnection, node_id: &str, short_name: &str, long_name: &str) {
+    diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))
+        .set((
+            dsl::short_name.eq(short_name),
+            dsl::long_name.eq(long_name),
+            dsl::last_seen_at_us.eq(now_as_useconds()),
+        ))
+        .execute(conn)
+        .expect("Error updating last seen timestamp");
+}
+
 /// Update the user's last seen timestamp.
 pub fn saw(conn: &mut SqliteConnection, node_id: &str) {
     diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))

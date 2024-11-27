@@ -42,12 +42,13 @@ fn board_enter(conn: &mut SqliteConnection, state: &mut UserState, args: Vec<&st
     state.last_seen.entry(num).or_insert(0);
 }
 
+fn format_user(user: &User) -> String {
+    format!("{}/{}:{}", user.node_id, user.short_name, user.long_name)
+}
+
 /// Print a post and information about its author.
 fn post_print(post: &Post, user: &User) {
-    println!(
-        "From: {}/{}:{}",
-        user.node_id, user.short_name, user.long_name
-    );
+    println!("From: {}", format_user(user));
     println!("At  : {}", formatted_useconds(post.created_at_us));
     println!("Msg : {}", post.body);
 }
@@ -172,7 +173,41 @@ fn setup() -> Vec<Command> {
 }
 
 /// Run a session from the local terminal.
-pub fn client(conn: &mut SqliteConnection, node_id: &str) {
+pub fn client(
+    conn: &mut SqliteConnection,
+    node_id: &str,
+    short_name: &Option<String>,
+    long_name: &Option<String>,
+) {
+    if let Ok(user) = users::get(conn, node_id) {
+        users::update(
+            conn,
+            node_id,
+            match short_name {
+                Some(x) => x,
+                None => user.short_name.as_str(),
+            },
+            match long_name {
+                Some(x) => x,
+                None => user.long_name.as_str(),
+            },
+        );
+        let user = users::get(conn, node_id).unwrap();
+        println!("Welcome back, {}!", format_user(&user));
+    } else {
+        let user = users::add(
+            conn,
+            node_id,
+            short_name
+                .as_ref()
+                .expect("New users must have a short name"),
+            long_name.as_ref().expect("New users must have a long name"),
+            &false,
+        )
+        .unwrap();
+        println!("Hello there, {}!", format_user(&user));
+    }
+
     let mut stdout = io::stdout();
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
@@ -183,7 +218,6 @@ pub fn client(conn: &mut SqliteConnection, node_id: &str) {
     };
     let commands = setup();
 
-    println!("Hello, {}!", &node_id);
     help(&state, &commands);
     println!();
     state_describe(conn, &mut state, [].to_vec());
