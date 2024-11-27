@@ -1,5 +1,4 @@
 use crate::db::{boards, posts, users};
-use crate::formatted_useconds;
 use diesel::SqliteConnection;
 
 // Today, for now, it's OK to fail when running user commands! A human will see the results,
@@ -17,8 +16,8 @@ pub fn user_list(conn: &mut SqliteConnection) {
     for user in users::all(conn) {
         println!(
             "| {} | {} | {}{} | {:4} | {:40} |",
-            formatted_useconds(user.created_at_us),
-            formatted_useconds(user.last_seen_at_us),
+            user.created_at(),
+            user.last_seen_at(),
             user.node_id,
             if user.jackass { "*" } else { " " },
             user.short_name,
@@ -66,7 +65,7 @@ pub fn board_list(conn: &mut SqliteConnection) {
     for board in boards::all(conn) {
         println!(
             "| {} | {:3} | {:30} | {} |",
-            formatted_useconds(board.created_at_us),
+            board.created_at(),
             board.id,
             board.name,
             board.description,
@@ -98,7 +97,7 @@ pub fn post_read(conn: &mut SqliteConnection, board_id: i32) {
     for (post, user) in post_info {
         println!(
             "| {} | {} | {} |", // "| {} | {:3} | {:30} | {} |",
-            formatted_useconds(post.created_at_us),
+            post.created_at(),
             user.node_id,
             post.body,
         );

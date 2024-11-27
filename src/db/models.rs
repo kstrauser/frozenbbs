@@ -1,6 +1,8 @@
-use crate::db::schema::{boards, posts, users};
+use super::formatted_useconds;
+use super::schema::{boards, posts, users};
 use diesel::prelude::*;
 use regex::Regex;
+use std::fmt;
 use validator::Validate;
 
 use once_cell::sync::Lazy;
@@ -20,6 +22,12 @@ pub struct Board {
     pub name: String,
     pub description: String,
     pub created_at_us: i64,
+}
+
+impl Board {
+    pub fn created_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
 }
 
 #[derive(Insertable, Validate)]
@@ -43,6 +51,12 @@ pub struct Post {
     pub user_id: i32,
     pub body: String,
     pub created_at_us: i64,
+}
+
+impl Post {
+    pub fn created_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
 }
 
 #[derive(Insertable, Validate)]
@@ -69,6 +83,24 @@ pub struct User {
     pub jackass: bool,
     pub created_at_us: i64,
     pub last_seen_at_us: i64,
+}
+
+impl fmt::Display for User {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}:{}", self.node_id, self.short_name, self.long_name)
+    }
+}
+
+impl User {
+    pub fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}:{}", self.node_id, self.short_name, self.long_name)
+    }
+    pub fn created_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
+    pub fn last_seen_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
 }
 
 #[derive(Insertable, Validate)]

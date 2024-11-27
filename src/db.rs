@@ -1,8 +1,8 @@
 pub mod boards;
 pub mod posts;
 pub mod users;
+use chrono::{Local, TimeZone, Utc};
 pub use models::{Board, Post, User};
-
 mod models;
 mod schema;
 use diesel::connection::SimpleConnection;
@@ -23,4 +23,20 @@ pub fn establish_connection() -> SqliteConnection {
         .batch_execute("PRAGMA foreign_keys = ON")
         .unwrap();
     connection
+}
+
+/// Get the number of microseconds since the Unix epoch.
+fn now_as_useconds() -> i64 {
+    Utc::now().timestamp_micros()
+}
+
+/// Format the number of microseconds since the Unix epoch as a local timestamp.
+pub fn formatted_useconds(dstamp: i64) -> String {
+    format!(
+        "{}",
+        Local
+            .timestamp_micros(dstamp)
+            .unwrap()
+            .format("%Y-%m-%dT%H:%M:%S")
+    )
 }

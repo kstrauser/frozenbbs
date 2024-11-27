@@ -1,6 +1,5 @@
 use crate::db::{boards, posts, users};
 use crate::db::{Post, User};
-use crate::formatted_useconds;
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 use std::collections::HashMap;
@@ -42,14 +41,10 @@ fn board_enter(conn: &mut SqliteConnection, state: &mut UserState, args: Vec<&st
     state.last_seen.entry(num).or_insert(0);
 }
 
-fn format_user(user: &User) -> String {
-    format!("{}/{}:{}", user.node_id, user.short_name, user.long_name)
-}
-
 /// Print a post and information about its author.
 fn post_print(post: &Post, user: &User) {
-    println!("From: {}", format_user(user));
-    println!("At  : {}", formatted_useconds(post.created_at_us));
+    println!("From: {}", user);
+    println!("At  : {}", post.created_at());
     println!("Msg : {}", post.body);
 }
 
@@ -82,7 +77,7 @@ fn board_next(conn: &mut SqliteConnection, state: &mut UserState, _args: Vec<&st
 fn board_write(conn: &mut SqliteConnection, state: &mut UserState, args: Vec<&str>) {
     let user = users::get(conn, state.node_id).unwrap();
     let post = posts::add(conn, user.id, state.board, args[0]).unwrap();
-    println!("Published at {}.", formatted_useconds(post.created_at_us));
+    println!("Published at {}.", post.created_at());
 }
 
 fn state_describe(conn: &mut SqliteConnection, state: &mut UserState, _args: Vec<&str>) {
@@ -193,7 +188,7 @@ pub fn client(
             },
         );
         let user = users::get(conn, node_id).unwrap();
-        println!("Welcome back, {}!", format_user(&user));
+        println!("Welcome back, {}!", user);
     } else {
         let user = users::add(
             conn,
@@ -205,7 +200,7 @@ pub fn client(
             &false,
         )
         .unwrap();
-        println!("Hello there, {}!", format_user(&user));
+        println!("Hello there, {}!", user);
     }
 
     let mut stdout = io::stdout();
