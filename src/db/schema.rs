@@ -1,6 +1,15 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    board_states (id) {
+        id -> Integer,
+        user_id -> Integer,
+        board_id -> Integer,
+        last_post_us -> BigInt,
+    }
+}
+
+diesel::table! {
     boards (id) {
         id -> Integer,
         name -> Text,
@@ -32,11 +41,14 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(board_states -> boards (board_id));
+diesel::joinable!(board_states -> users (user_id));
 diesel::joinable!(posts -> boards (board_id));
 diesel::joinable!(posts -> users (user_id));
 diesel::joinable!(users -> boards (in_board));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    board_states,
     boards,
     posts,
     users,

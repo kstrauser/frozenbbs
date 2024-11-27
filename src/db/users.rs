@@ -1,8 +1,6 @@
 use super::models::{NewUser, User};
-use super::now_as_useconds;
-use super::schema::users::dsl;
-use super::schema::users::table;
-use super::Result;
+use super::schema::users::{dsl, table};
+use super::{now_as_useconds, Result};
 use diesel::prelude::*;
 use validator::Validate as _;
 
