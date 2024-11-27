@@ -38,8 +38,5 @@ pub fn get(conn: &mut SqliteConnection, board_id: i32) -> QueryResult<Board> {
 
 /// Get the number of configured boards
 pub fn count(conn: &mut SqliteConnection) -> i32 {
-    match all(conn).into_iter().map(|x| x.id).max() {
-        Some(x) => x,
-        None => 0,
-    }
+    all(conn).into_iter().map(|x| x.id).max().unwrap_or(0)
 }
