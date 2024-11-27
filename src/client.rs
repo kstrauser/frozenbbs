@@ -172,7 +172,7 @@ fn setup() -> Vec<Command> {
 }
 
 /// Run a session from the local terminal.
-pub fn client(connection: &mut SqliteConnection, node_id: &str) {
+pub fn client(conn: &mut SqliteConnection, node_id: &str) {
     let mut stdout = io::stdout();
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
@@ -186,7 +186,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
     println!("Hello, {}!", &node_id);
     help(&state, &commands);
     println!();
-    state_describe(connection, &mut state, [].to_vec());
+    state_describe(conn, &mut state, [].to_vec());
 
     'outer: loop {
         println!();
@@ -199,7 +199,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
             println!("Disconnected.");
             return;
         }
-        users::saw(connection, state.node_id);
+        users::saw(conn, state.node_id);
         let trimmed = buffer.trim();
         let lower = trimmed.to_lowercase();
 
@@ -209,7 +209,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
             }
             if let Some(captures) = command.pattern.captures(trimmed) {
                 (command.func)(
-                    connection,
+                    conn,
                     &mut state,
                     // Collect all of the matched groups in the pattern into a vector of strs
                     captures
