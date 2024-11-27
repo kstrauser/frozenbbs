@@ -1,9 +1,7 @@
 use super::models::{NewPost, Post, User};
-use super::now_as_useconds;
-use super::schema::posts::dsl as posts_dsl;
-use super::schema::posts::table;
+use super::schema::posts::{dsl as posts_dsl, table};
 use super::schema::users::dsl as users_dsl;
-use super::Result;
+use super::{now_as_useconds, Result};
 use diesel::prelude::*;
 use validator::Validate as _;
 

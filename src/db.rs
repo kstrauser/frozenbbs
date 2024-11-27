@@ -1,3 +1,4 @@
+pub mod board_states;
 pub mod boards;
 pub mod posts;
 pub mod users;

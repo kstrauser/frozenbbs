@@ -1,8 +1,6 @@
 use super::models::{Board, NewBoard};
-use super::now_as_useconds;
-use super::schema::boards::dsl;
-use super::schema::boards::table;
-use super::Result;
+use super::schema::boards::{dsl, table};
+use super::{now_as_useconds, Result};
 use diesel::prelude::*;
 use validator::Validate as _;
 

@@ -1,25 +1,11 @@
-use crate::db::{boards, posts, users};
-use crate::db::{Post, User};
+use crate::db::{board_states, boards, posts, users, Post, User};
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
-use std::collections::HashMap;
 use std::io::{self, Write as _};
 
 const NOT_IN_BOARD: &str = "You are not in a board.";
 
-/// The user's global state
-#[derive(Debug)]
-struct UserState<'a> {
-    node_id: &'a str,
-    last_seen: HashMap<i32, i64>,
-}
-
-fn board_lister(
-    conn: &mut SqliteConnection,
-    _user: &mut User,
-    _state: &mut UserState,
-    _args: Vec<&str>,
-) {
+fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) {
     println!("Boards:");
     println!();
     let all_boards = boards::all(conn);
@@ -32,12 +18,7 @@ fn board_lister(
     }
 }
 
-fn board_enter(
-    conn: &mut SqliteConnection,
-    user: &mut User,
-    state: &mut UserState,
-    args: Vec<&str>,
-) {
+fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
@@ -56,7 +37,6 @@ fn board_enter(
     }
     println!("Entering board {}", num);
     let _ = users::enter_board(conn, user, num);
-    state.last_seen.entry(num).or_insert(0);
 }
 
 /// Print a post and information about its author.
@@ -66,12 +46,7 @@ fn post_print(post: &Post, user: &User) {
     println!("Msg : {}", post.body);
 }
 
-fn board_previous(
-    conn: &mut SqliteConnection,
-    user: &mut User,
-    state: &mut UserState,
-    _args: Vec<&str>,
-) {
+fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -79,22 +54,19 @@ fn board_previous(
             return;
         }
     };
-    if let Ok((post, user)) =
-        posts::before(conn, in_board, *state.last_seen.get(&in_board).unwrap())
-    {
-        post_print(&post, &user);
-        state.last_seen.insert(in_board, post.created_at_us);
+    let last_seen = board_states::get(conn, user.id, in_board);
+    if let Ok((post, post_user)) = posts::before(conn, in_board, last_seen) {
+        post_print(&post, &post_user);
+        board_states::update(conn, user.id, in_board, post.created_at_us);
     } else {
         println!("There are no more posts in this board.");
+        if last_seen != 0 {
+            board_states::update(conn, user.id, in_board, last_seen - 1);
+        }
     }
 }
 
-fn board_next(
-    conn: &mut SqliteConnection,
-    user: &mut User,
-    state: &mut UserState,
-    _args: Vec<&str>,
-) {
+fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -102,21 +74,19 @@ fn board_next(
             return;
         }
     };
-    if let Ok((post, user)) = posts::after(conn, in_board, *state.last_seen.get(&in_board).unwrap())
-    {
-        post_print(&post, &user);
-        state.last_seen.insert(in_board, post.created_at_us);
+    let last_seen = board_states::get(conn, user.id, in_board);
+    if let Ok((post, post_user)) = posts::after(conn, in_board, last_seen) {
+        post_print(&post, &post_user);
+        board_states::update(conn, user.id, in_board, post.created_at_us);
     } else {
         println!("There are no more posts in this board.");
+        if last_seen != 0 {
+            board_states::update(conn, user.id, in_board, last_seen + 1);
+        }
     }
 }
 
-fn board_write(
-    conn: &mut SqliteConnection,
-    user: &mut User,
-    _state: &mut UserState,
-    args: Vec<&str>,
-) {
+fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -128,12 +98,7 @@ fn board_write(
     println!("Published at {}.", post.created_at());
 }
 
-fn state_describe(
-    conn: &mut SqliteConnection,
-    user: &mut User,
-    _state: &mut UserState,
-    _args: Vec<&str>,
-) {
+fn state_describe(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -146,12 +111,12 @@ fn state_describe(
 }
 
 /// Return whether the user is in a message board.
-fn available_in_board(user: &User, _state: &UserState) -> bool {
+fn available_in_board(user: &User) -> bool {
     user.in_board.is_some()
 }
 
 /// These commands are always available.
-fn available_always(_user: &User, _state: &UserState) -> bool {
+fn available_always(_user: &User) -> bool {
     true
 }
 
@@ -164,9 +129,9 @@ struct Command {
     /// The pattern matching the command and its arguments.
     pattern: Regex,
     /// A function that determines whether the user in this state can run this command.
-    available: fn(&User, &UserState) -> bool,
+    available: fn(&User) -> bool,
     /// The function that implements this command.
-    func: fn(&mut SqliteConnection, &mut User, &mut UserState, Vec<&str>),
+    func: fn(&mut SqliteConnection, &mut User, Vec<&str>),
 }
 
 fn make_pattern(pattern: &str) -> Regex {
@@ -262,16 +227,12 @@ pub fn client(
     let mut stdout = io::stdout();
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
-    let mut state = UserState {
-        node_id,
-        last_seen: HashMap::new(),
-    };
     let commands = setup();
 
     let mut this_user = users::get(conn, node_id).unwrap();
-    help(&this_user, &state, &commands);
+    help(&this_user, &commands);
     println!();
-    state_describe(conn, &mut this_user, &mut state, [].to_vec());
+    state_describe(conn, &mut this_user, [].to_vec());
 
     'outer: loop {
         println!();
@@ -284,21 +245,20 @@ pub fn client(
             println!("Disconnected.");
             return;
         }
-        users::saw(conn, state.node_id);
+        users::saw(conn, &this_user.node_id);
         let trimmed = buffer.trim();
         let lower = trimmed.to_lowercase();
 
         let mut this_user = users::get(conn, node_id).unwrap();
 
         for command in commands.iter() {
-            if !(command.available)(&this_user, &state) {
+            if !(command.available)(&this_user) {
                 continue;
             }
             if let Some(captures) = command.pattern.captures(trimmed) {
                 (command.func)(
                     conn,
                     &mut this_user,
-                    &mut state,
                     // Collect all of the matched groups in the pattern into a vector of strs
                     captures
                         .iter()
@@ -317,21 +277,21 @@ pub fn client(
         }
 
         println!("That's not an available command here.");
-        help(&this_user, &state, &commands);
+        help(&this_user, &commands);
     }
 }
 
 /// Show the user all commands available to them right now.
-fn help(user: &User, state: &UserState, commands: &Vec<Command>) {
+fn help(user: &User, commands: &Vec<Command>) {
     println!("\nCommands:\n");
     let width = commands
         .iter()
-        .filter(|x| (x.available)(user, state))
+        .filter(|x| (x.available)(user))
         .map(|x| x.arg.len())
         .max()
         .unwrap();
     for command in commands {
-        if (command.available)(user, state) {
+        if (command.available)(user) {
             println!("{:width$} : {}", command.arg, command.help);
         }
     }

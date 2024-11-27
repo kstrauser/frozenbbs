@@ -1,5 +1,5 @@
 use super::formatted_useconds;
-use super::schema::{boards, posts, users};
+use super::schema::{board_states, boards, posts, users};
 use diesel::prelude::*;
 use regex::Regex;
 use std::fmt;
@@ -118,4 +118,25 @@ pub struct NewUser<'a> {
     pub created_at_us: &'a i64,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_seen_at_us: &'a i64,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = crate::db::schema::board_states)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct BoardState {
+    pub id: i32,
+    // pub user_id: i32,
+    // pub board_id: i32,
+    pub last_post_us: i64,
+}
+
+#[derive(Debug, Insertable, Validate)]
+#[diesel(table_name = board_states)]
+pub struct NewBoardState {
+    #[validate(range(min = 1))]
+    pub user_id: i32,
+    #[validate(range(min = 1))]
+    pub board_id: i32,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub last_post_us: i64,
 }
