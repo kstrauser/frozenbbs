@@ -199,6 +199,7 @@ pub fn client(connection: &mut SqliteConnection, node_id: &str) {
             println!("Disconnected.");
             return;
         }
+        users::saw(connection, state.node_id);
         let trimmed = buffer.trim();
         let lower = trimmed.to_lowercase();
 
