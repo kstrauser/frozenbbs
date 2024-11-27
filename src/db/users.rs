@@ -75,3 +75,9 @@ pub fn get(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
         .filter(dsl::node_id.eq(node_id))
         .first(conn)
 }
+
+pub fn enter_board(conn: &mut SqliteConnection, user: &User, board_id: i32) -> QueryResult<User> {
+    diesel::update(dsl::users.filter(dsl::node_id.eq(&user.node_id)))
+        .set(dsl::in_board.eq(board_id))
+        .get_result(conn)
+}
