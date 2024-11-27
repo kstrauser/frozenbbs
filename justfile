@@ -49,7 +49,7 @@ db_restore: db_nuke
     cat backup.sql | sqlite3 {{ dbfile }}
 
 db_init: db_migrate
-    {{ bbscmd }} admin user add --node-id !cafebead --short FRZB --long "Frozen BBS"
+    {{ bbscmd }} admin user add --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
     {{ bbscmd }} admin user add -n !1234fedc -s 1234 -l 'Jerk' -j
     {{ bbscmd }} admin user add -n !1234abcd -s 4567 -l 'OK person'
     {{ bbscmd }} admin board add --name "Board Talk" --description "Discussing this BBS itself."

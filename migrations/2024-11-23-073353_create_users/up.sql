@@ -4,6 +4,8 @@ CREATE TABLE users (
   short_name TEXT NOT NULL,
   long_name TEXT NOT NULL,
   jackass BOOL NOT NULL DEFAULT FALSE,
+  in_board INTEGER,
   created_at_us BIGINT NOT NULL,
-  last_seen_at_us BIGINT NOT NULL
+  last_seen_at_us BIGINT NOT NULL,
+  FOREIGN KEY(in_board) REFERENCES boards(id)
 )
