@@ -3,35 +3,39 @@ use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 use std::io::{self, Write as _};
 
-const NOT_IN_BOARD: &str = "You are not in a board.\n";
+const NO_BOARDS: &str = "There are no boards.";
+const NO_MORE_POSTS: &str = "There are no more posts in this board.";
+const NOT_IN_BOARD: &str = "You are not in a board.";
+const NOT_VALID: &str = "Not a valid number!";
 
+/// List all the boards.
 fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> String {
-    let mut out = String::new();
-    out.push_str("Boards:\n\n");
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
-        out.push_str("There are no boards.\n");
-    } else {
-        for board in boards::all(conn) {
-            out.push_str(&format!(
-                "#{} {}: {}\n",
-                board.id, board.name, board.description
-            ));
-        }
+        return format!("{}\n", NO_BOARDS);
+    }
+    let mut out = String::new();
+    out.push_str("Boards:\n\n");
+    for board in boards::all(conn) {
+        out.push_str(&format!(
+            "#{} {}: {}\n",
+            board.id, board.name, board.description
+        ));
     }
     out
 }
 
+/// Enter a board.
 fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> String {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
-            return "Not a valid number!\n".to_string();
+            return format!("{}\n", NOT_VALID);
         }
     };
     let count = boards::count(conn);
     if count == 0 {
-        return "There are no boards.\n".to_string();
+        return format!("{}\n", NO_BOARDS);
     }
     if num < 1 || num > count {
         return format!("Board number must be between 1 and {}\n", count);
@@ -42,18 +46,24 @@ fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) ->
 
 /// Print a post and information about its author.
 fn post_print(post: &Post, user: &User) -> String {
-    let mut out = String::new();
-    out.push_str(&format!("From: {}\n", user));
-    out.push_str(&format!("At  : {}\n", post.created_at()));
-    out.push_str(&format!("Msg : {}\n", post.body));
-    out
+    format!(
+        "\
+From: {}
+At  : {}
+Msg : {}
+",
+        user,
+        post.created_at(),
+        post.body
+    )
 }
 
+/// Get the previous message in the board.
 fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return NOT_IN_BOARD.to_string();
+            return format!("{}\n", NOT_IN_BOARD);
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
@@ -64,15 +74,16 @@ fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>
         if last_seen != 0 {
             board_states::update(conn, user.id, in_board, last_seen - 1);
         }
-        "There are no more posts in this board.\n".to_string()
+        format!("{}\n", NO_MORE_POSTS)
     }
 }
 
+/// Get the next message in the board.
 fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return NOT_IN_BOARD.to_string();
+            return format!("{}\n", NOT_IN_BOARD);
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
@@ -83,26 +94,28 @@ fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) ->
         if last_seen != 0 {
             board_states::update(conn, user.id, in_board, last_seen + 1);
         }
-        "There are no more posts in this board.\n".to_string()
+        format!("{}\n", NO_MORE_POSTS)
     }
 }
 
+/// Add a new post to the board.
 fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return NOT_IN_BOARD.to_string();
+            return format!("{}\n", NOT_IN_BOARD);
         }
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
     format!("Published at {}.\n", post.created_at())
 }
 
+/// Tell the user where they are.
 fn state_describe(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return NOT_IN_BOARD.to_string();
+            return format!("{}\n", NOT_IN_BOARD);
         }
     };
     let board = boards::get(conn, in_board).unwrap();
@@ -113,6 +126,7 @@ fn state_describe(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>
 fn help(user: &User, commands: &Vec<Command>) -> String {
     let mut out = String::new();
     out.push_str("\nCommands:\n\n");
+    // Get the width of the widest argument of any available command.
     let width = commands
         .iter()
         .filter(|x| (x.available)(user))
