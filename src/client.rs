@@ -3,111 +3,129 @@ use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 use std::io::{self, Write as _};
 
-const NOT_IN_BOARD: &str = "You are not in a board.";
+const NOT_IN_BOARD: &str = "You are not in a board.\n";
 
-fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) {
-    println!("Boards:");
-    println!();
+fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> String {
+    let mut out = String::new();
+    out.push_str("Boards:\n\n");
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
-        println!("There are no boards.");
+        out.push_str("There are no boards.\n");
     } else {
         for board in boards::all(conn) {
-            println!("#{} {}: {}", board.id, board.name, board.description);
+            out.push_str(&format!(
+                "#{} {}: {}\n",
+                board.id, board.name, board.description
+            ));
         }
     }
+    out
 }
 
-fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) {
+fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> String {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
-            println!("Not a valid number!");
-            return;
+            return "Not a valid number!\n".to_string();
         }
     };
     let count = boards::count(conn);
     if count == 0 {
-        println!("There are no boards.");
-        return;
+        return "There are no boards.\n".to_string();
     }
     if num < 1 || num > count {
-        println!("Board number must be between 1 and {}", count);
-        return;
+        return format!("Board number must be between 1 and {}\n", count);
     }
-    println!("Entering board {}", num);
     let _ = users::enter_board(conn, user, num);
+    format!("Entering board {}\n", num)
 }
 
 /// Print a post and information about its author.
-fn post_print(post: &Post, user: &User) {
-    println!("From: {}", user);
-    println!("At  : {}", post.created_at());
-    println!("Msg : {}", post.body);
+fn post_print(post: &Post, user: &User) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("From: {}\n", user));
+    out.push_str(&format!("At  : {}\n", post.created_at()));
+    out.push_str(&format!("Msg : {}\n", post.body));
+    out
 }
 
-fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) {
+fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            println!("{}", NOT_IN_BOARD);
-            return;
+            return NOT_IN_BOARD.to_string();
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::before(conn, in_board, last_seen) {
-        post_print(&post, &post_user);
         board_states::update(conn, user.id, in_board, post.created_at_us);
+        post_print(&post, &post_user)
     } else {
-        println!("There are no more posts in this board.");
         if last_seen != 0 {
             board_states::update(conn, user.id, in_board, last_seen - 1);
         }
+        "There are no more posts in this board.\n".to_string()
     }
 }
 
-fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) {
+fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            println!("{}", NOT_IN_BOARD);
-            return;
+            return NOT_IN_BOARD.to_string();
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::after(conn, in_board, last_seen) {
-        post_print(&post, &post_user);
         board_states::update(conn, user.id, in_board, post.created_at_us);
+        post_print(&post, &post_user)
     } else {
-        println!("There are no more posts in this board.");
         if last_seen != 0 {
             board_states::update(conn, user.id, in_board, last_seen + 1);
         }
+        "There are no more posts in this board.\n".to_string()
     }
 }
 
-fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) {
+fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            println!("{}", NOT_IN_BOARD);
-            return;
+            return NOT_IN_BOARD.to_string();
         }
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
-    println!("Published at {}.", post.created_at());
+    format!("Published at {}.\n", post.created_at())
 }
 
-fn state_describe(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) {
+fn state_describe(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            println!("{}", NOT_IN_BOARD);
-            return;
+            return NOT_IN_BOARD.to_string();
         }
     };
     let board = boards::get(conn, in_board).unwrap();
-    println!("You are in board #{}: {}", in_board, board.name);
+    format!("You are in board #{}: {}\n", in_board, board.name)
+}
+
+/// Show the user all commands available to them right now.
+fn help(user: &User, commands: &Vec<Command>) -> String {
+    let mut out = String::new();
+    out.push_str("\nCommands:\n\n");
+    let width = commands
+        .iter()
+        .filter(|x| (x.available)(user))
+        .map(|x| x.arg.len())
+        .max()
+        .unwrap();
+    for command in commands {
+        if (command.available)(user) {
+            out.push_str(&format!("{:width$} : {}\n", command.arg, command.help));
+        }
+    }
+    out.push_str(&format!("{:width$} : Quit\n", "Q"));
+    out
 }
 
 /// Return whether the user is in a message board.
@@ -131,9 +149,10 @@ struct Command {
     /// A function that determines whether the user in this state can run this command.
     available: fn(&User) -> bool,
     /// The function that implements this command.
-    func: fn(&mut SqliteConnection, &mut User, Vec<&str>),
+    func: fn(&mut SqliteConnection, &mut User, Vec<&str>) -> String,
 }
 
+/// Build a Regex in our common fashion.
 fn make_pattern(pattern: &str) -> Regex {
     RegexBuilder::new(format!("^{}$", pattern).as_str())
         .case_insensitive(false)
@@ -230,7 +249,7 @@ pub fn client(
     let commands = setup();
 
     let mut this_user = users::get(conn, node_id).unwrap();
-    help(&this_user, &commands);
+    println!("{}", help(&this_user, &commands));
     println!();
     state_describe(conn, &mut this_user, [].to_vec());
 
@@ -256,17 +275,14 @@ pub fn client(
                 continue;
             }
             if let Some(captures) = command.pattern.captures(trimmed) {
-                (command.func)(
-                    conn,
-                    &mut this_user,
-                    // Collect all of the matched groups in the pattern into a vector of strs
-                    captures
-                        .iter()
-                        .skip(1)
-                        .flatten()
-                        .map(|x| x.as_str().trim())
-                        .collect(),
-                );
+                // Collect all of the matched groups in the pattern into a vector of strs
+                let args = captures
+                    .iter()
+                    .skip(1)
+                    .flatten()
+                    .map(|x| x.as_str().trim())
+                    .collect();
+                print!("{}", (command.func)(conn, &mut this_user, args));
                 continue 'outer;
             }
         }
@@ -277,23 +293,6 @@ pub fn client(
         }
 
         println!("That's not an available command here.");
-        help(&this_user, &commands);
+        println!("{}", help(&this_user, &commands));
     }
-}
-
-/// Show the user all commands available to them right now.
-fn help(user: &User, commands: &Vec<Command>) {
-    println!("\nCommands:\n");
-    let width = commands
-        .iter()
-        .filter(|x| (x.available)(user))
-        .map(|x| x.arg.len())
-        .max()
-        .unwrap();
-    for command in commands {
-        if (command.available)(user) {
-            println!("{:width$} : {}", command.arg, command.help);
-        }
-    }
-    println!("{:width$} : Quit", "Q");
 }
