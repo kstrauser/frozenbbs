@@ -125,6 +125,8 @@ pub struct NewUser<'a> {
     pub created_at_us: &'a i64,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_seen_at_us: &'a i64,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub last_acted_at_us: Option<&'a i64>,
 }
 
 #[derive(Debug, Queryable, Selectable)]

@@ -15,12 +15,6 @@ enum Subsystems {
         /// User's node ID in !hex format.
         #[arg(short, long)]
         node_id: String,
-        /// User's 4-byte short name.
-        #[arg(short, long)]
-        short_name: Option<String>,
-        /// User's long name.
-        #[arg(short, long)]
-        long_name: Option<String>,
     },
     /// Admin commands
     #[command(arg_required_else_help = true)]
@@ -157,11 +151,7 @@ fn main() {
             },
             None => {}
         },
-        Some(Subsystems::Client {
-            node_id,
-            short_name,
-            long_name,
-        }) => client::client(conn, node_id, short_name, long_name),
+        Some(Subsystems::Client { node_id }) => client::client(conn, node_id),
         None => {}
     }
 }

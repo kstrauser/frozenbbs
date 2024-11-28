@@ -35,8 +35,13 @@ pub fn user_list(conn: &mut SqliteConnection) {
 }
 
 pub fn user_observe(conn: &mut SqliteConnection, node_id: &str, short_name: &str, long_name: &str) {
-    let user = users::observe(conn, node_id, short_name, long_name).unwrap();
-    println!("Observe user #{}, '{}'", user.id, user.node_id);
+    let (user, seen) = users::observe(conn, node_id, short_name, long_name).unwrap();
+    println!(
+        "Observe {} user #{}, '{}'",
+        if seen { "existing" } else { "new" },
+        user.id,
+        user.node_id
+    );
 }
 
 pub fn user_ban(conn: &mut SqliteConnection, node_id: &str) {
