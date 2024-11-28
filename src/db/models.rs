@@ -84,6 +84,7 @@ pub struct User {
     pub in_board: Option<i32>,
     pub created_at_us: i64,
     pub last_seen_at_us: i64,
+    pub last_acted_at_us: Option<i64>,
 }
 
 impl fmt::Display for User {
@@ -99,8 +100,15 @@ impl User {
     pub fn created_at(&self) -> String {
         formatted_useconds(self.created_at_us)
     }
+    pub fn last_acted_at(&self) -> String {
+        if let Some(acted) = self.last_acted_at_us {
+            formatted_useconds(acted)
+        } else {
+            "".to_string()
+        }
+    }
     pub fn last_seen_at(&self) -> String {
-        formatted_useconds(self.created_at_us)
+        formatted_useconds(self.last_seen_at_us)
     }
 }
 
@@ -113,7 +121,6 @@ pub struct NewUser<'a> {
     pub short_name: &'a str,
     #[validate(length(min = 1, max = 40))]
     pub long_name: &'a str,
-    pub jackass: &'a bool,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub created_at_us: &'a i64,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]

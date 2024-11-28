@@ -38,6 +38,7 @@ diesel::table! {
         in_board -> Nullable<Integer>,
         created_at_us -> BigInt,
         last_seen_at_us -> BigInt,
+        last_acted_at_us -> Nullable<BigInt>,
     }
 }
 

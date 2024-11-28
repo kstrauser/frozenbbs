@@ -56,8 +56,8 @@ enum AdminCommands {
 enum AdminUserCommands {
     /// List all users.
     List {},
-    /// Add a new user.
-    Add {
+    /// Add a new user as though we see their node info.
+    Observe {
         /// User's node ID in !hex format.
         #[arg(short, long)]
         node_id: String,
@@ -67,9 +67,6 @@ enum AdminUserCommands {
         /// User's long name.
         #[arg(short, long)]
         long_name: String,
-        /// The user is a jackass.
-        #[arg(short, long)]
-        jackass: bool,
     },
     /// Set the user's jackass bit.
     Ban {
@@ -133,12 +130,11 @@ fn main() {
         Some(Subsystems::Admin { admin_command }) => match admin_command {
             Some(AdminCommands::User { user_command }) => match user_command {
                 Some(AdminUserCommands::List {}) => admin::user_list(conn),
-                Some(AdminUserCommands::Add {
+                Some(AdminUserCommands::Observe {
                     node_id,
                     short_name,
                     long_name,
-                    jackass,
-                }) => admin::user_add(conn, node_id, short_name, long_name, jackass),
+                }) => admin::user_observe(conn, node_id, short_name, long_name),
                 Some(AdminUserCommands::Ban { node_id }) => admin::user_ban(conn, node_id),
                 Some(AdminUserCommands::Unban { node_id }) => admin::user_unban(conn, node_id),
                 None => {}

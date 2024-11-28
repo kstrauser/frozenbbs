@@ -4,19 +4,18 @@ use super::{now_as_useconds, Result};
 use diesel::prelude::*;
 use validator::Validate as _;
 
-pub fn add(
+/// Record a user that we passively saw in a NodeInfo packet.
+pub fn observe(
     conn: &mut SqliteConnection,
     node_id: &str,
     short_name: &str,
     long_name: &str,
-    jackass: &bool,
 ) -> Result<User> {
     let now = now_as_useconds();
     let new_user = NewUser {
         node_id: node_id.trim(),
         short_name: short_name.trim(),
         long_name: long_name.trim(),
-        jackass,
         created_at_us: &now,
         last_seen_at_us: &now,
     };
@@ -40,12 +39,16 @@ pub fn update(conn: &mut SqliteConnection, node_id: &str, short_name: &str, long
         .expect("Error updating last seen timestamp");
 }
 
-/// Update the user's last seen timestamp.
-pub fn saw(conn: &mut SqliteConnection, node_id: &str) {
+/// Update the user's last acted and seen timestamps.
+pub fn acted(conn: &mut SqliteConnection, node_id: &str) {
+    let now = now_as_useconds();
     diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))
-        .set(dsl::last_seen_at_us.eq(now_as_useconds()))
+        .set((
+            dsl::last_acted_at_us.eq(&now),
+            dsl::last_seen_at_us.eq(&now),
+        ))
         .execute(conn)
-        .expect("Error updating last seen timestamp");
+        .expect("Error updating last acted and seen timestamps");
 }
 
 pub fn all(conn: &mut SqliteConnection) -> Vec<User> {

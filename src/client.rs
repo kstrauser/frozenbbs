@@ -5,7 +5,7 @@ use std::io::{self, Write as _};
 
 fn dispatch(conn: &mut SqliteConnection, node_id: &str, commands: &Vec<Command>, cmdline: &str) {
     let mut user = users::get(conn, node_id).unwrap();
-    users::saw(conn, &user.node_id);
+    users::acted(conn, &user.node_id);
     for command in commands.iter() {
         if !(command.available)(&user) {
             continue;
@@ -58,14 +58,13 @@ pub fn client(
         let user = users::get(conn, node_id).unwrap();
         println!("Welcome back, {}!", user);
     } else {
-        let user = users::add(
+        let user = users::observe(
             conn,
             node_id,
             short_name
                 .as_ref()
                 .expect("New users must have a short name"),
             long_name.as_ref().expect("New users must have a long name"),
-            &false,
         )
         .unwrap();
         println!("Hello there, {}!", user);
