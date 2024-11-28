@@ -1,11 +1,14 @@
-use crate::commands::{help, setup, state_describe, Command};
+use crate::commands::{help, setup, Command};
 use crate::db::users;
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
 fn dispatch(conn: &mut SqliteConnection, node_id: &str, commands: &Vec<Command>, cmdline: &str) {
-    let mut user = users::get(conn, node_id).unwrap();
-    users::acted(conn, &user.node_id);
+    let (mut user, seen) = users::record(conn, node_id).unwrap();
+    if !seen {
+        println!("Welcome to Frozen BBS!\n");
+        help(&user, commands);
+    }
     for command in commands.iter() {
         if !(command.available)(&user) {
             continue;
@@ -36,48 +39,11 @@ fn dispatch(conn: &mut SqliteConnection, node_id: &str, commands: &Vec<Command>,
 }
 
 /// Run a session from the local terminal.
-pub fn client(
-    conn: &mut SqliteConnection,
-    node_id: &str,
-    short_name: &Option<String>,
-    long_name: &Option<String>,
-) {
-    if let Ok(user) = users::get(conn, node_id) {
-        users::update(
-            conn,
-            node_id,
-            match short_name {
-                Some(x) => x,
-                None => user.short_name.as_str(),
-            },
-            match long_name {
-                Some(x) => x,
-                None => user.long_name.as_str(),
-            },
-        );
-        let user = users::get(conn, node_id).unwrap();
-        println!("Welcome back, {}!", user);
-    } else {
-        let user = users::observe(
-            conn,
-            node_id,
-            short_name
-                .as_ref()
-                .expect("New users must have a short name"),
-            long_name.as_ref().expect("New users must have a long name"),
-        )
-        .unwrap();
-        println!("Hello there, {}!", user);
-    }
-
+pub fn client(conn: &mut SqliteConnection, node_id: &str) {
     let mut stdout = io::stdout();
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
     let commands = setup();
-
-    let mut this_user = users::get(conn, node_id).unwrap();
-    print!("{}", help(&this_user, &commands));
-    state_describe(conn, &mut this_user, [].to_vec());
 
     loop {
         println!();
