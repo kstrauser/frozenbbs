@@ -1,7 +1,39 @@
-use crate::commands::{help, setup, state_describe};
+use crate::commands::{help, setup, state_describe, Command};
 use crate::db::users;
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
+
+fn dispatch(conn: &mut SqliteConnection, node_id: &str, commands: &Vec<Command>, cmdline: &str) {
+    let mut user = users::get(conn, node_id).unwrap();
+    users::saw(conn, &user.node_id);
+    for command in commands.iter() {
+        if !(command.available)(&user) {
+            continue;
+        }
+        if let Some(captures) = command.pattern.captures(cmdline) {
+            // Collect all of the matched groups in the pattern into a vector of strs
+            let args = captures
+                .iter()
+                .skip(1)
+                .flatten()
+                .map(|x| x.as_str().trim())
+                .collect();
+            print!("{}", (command.func)(conn, &mut user, args));
+            return;
+        }
+    }
+    match cmdline.to_lowercase().as_str() {
+        "q" => {
+            println!("buh-bye!");
+            return;
+        }
+        "h" => {}
+        _ => {
+            println!("That's not an available command here.\n");
+        }
+    }
+    print!("{}", help(&user, commands));
+}
 
 /// Run a session from the local terminal.
 pub fn client(
@@ -48,7 +80,7 @@ pub fn client(
     print!("{}", help(&this_user, &commands));
     state_describe(conn, &mut this_user, [].to_vec());
 
-    'outer: loop {
+    loop {
         println!();
         print!("Command: ");
         stdout.flush().unwrap();
@@ -60,34 +92,6 @@ pub fn client(
             return;
         }
         let buffer = buffer.trim();
-        let mut this_user = users::get(conn, node_id).unwrap();
-        users::saw(conn, &this_user.node_id);
-        for command in commands.iter() {
-            if !(command.available)(&this_user) {
-                continue;
-            }
-            if let Some(captures) = command.pattern.captures(buffer) {
-                // Collect all of the matched groups in the pattern into a vector of strs
-                let args = captures
-                    .iter()
-                    .skip(1)
-                    .flatten()
-                    .map(|x| x.as_str().trim())
-                    .collect();
-                print!("{}", (command.func)(conn, &mut this_user, args));
-                continue 'outer;
-            }
-        }
-        match buffer.to_lowercase().as_str() {
-            "q" => {
-                println!("buh-bye!");
-                return;
-            }
-            "h" => {}
-            _ => {
-                println!("That's not an available command here.\n");
-            }
-        }
-        print!("{}", help(&this_user, &commands));
+        dispatch(conn, node_id, &commands, buffer);
     }
 }
