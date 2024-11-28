@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use frozenbbs::{admin, client, db};
+use frozenbbs::{admin, client, db, radio};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
@@ -16,6 +16,8 @@ enum Subsystems {
         #[command(subcommand)]
         client_command: Option<ClientCommands>,
     },
+    /// Server commands
+    Server {},
     /// Admin commands
     #[command(arg_required_else_help = true)]
     Admin {
@@ -133,8 +135,8 @@ enum ClientCommands {
         command: String,
     },
 }
-
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     let conn = &mut db::establish_connection();
@@ -177,6 +179,8 @@ fn main() {
             }
             None => {}
         },
+        Some(Subsystems::Server {}) => return radio::event_loop(conn).await,
         None => {}
     }
+    Ok(())
 }
