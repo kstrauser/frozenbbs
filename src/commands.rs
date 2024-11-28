@@ -138,7 +138,6 @@ pub fn help(user: &User, commands: &Vec<Command>) -> String {
         }
     }
     out.push_str(&format!("{:width$} : This help\n", "H"));
-    out.push_str(&format!("{:width$} : Quit\n", "Q"));
     out
 }
 

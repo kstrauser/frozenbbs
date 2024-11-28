@@ -10,11 +10,11 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Subsystems {
-    /// Connect with a client
+    /// Client commands
+    #[command(arg_required_else_help = true)]
     Client {
-        /// User's node ID in !hex format.
-        #[arg(short, long)]
-        node_id: String,
+        #[command(subcommand)]
+        client_command: Option<ClientCommands>,
     },
     /// Admin commands
     #[command(arg_required_else_help = true)]
@@ -115,6 +115,25 @@ enum AdminPostCommands {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum ClientCommands {
+    /// Open a local terminal session.
+    Terminal {
+        /// User's node ID in !hex format.
+        #[arg(short, long)]
+        node_id: String,
+    },
+    /// Run a single command.
+    Command {
+        /// User's node ID in !hex format.
+        #[arg(short, long)]
+        node_id: String,
+        /// The command to run.
+        #[arg()]
+        command: String,
+    },
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -151,7 +170,13 @@ fn main() {
             },
             None => {}
         },
-        Some(Subsystems::Client { node_id }) => client::client(conn, node_id),
+        Some(Subsystems::Client { client_command }) => match client_command {
+            Some(ClientCommands::Terminal { node_id }) => client::terminal(conn, node_id),
+            Some(ClientCommands::Command { node_id, command }) => {
+                client::command(conn, node_id, command)
+            }
+            None => {}
+        },
         None => {}
     }
 }
