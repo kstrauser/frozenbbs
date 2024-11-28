@@ -27,12 +27,12 @@ pub fn establish_connection() -> SqliteConnection {
 }
 
 /// Get the number of microseconds since the Unix epoch.
-fn now_as_useconds() -> i64 {
+pub fn now_as_useconds() -> i64 {
     Utc::now().timestamp_micros()
 }
 
 /// Format the number of microseconds since the Unix epoch as a local timestamp.
-pub fn formatted_useconds(dstamp: i64) -> String {
+fn formatted_useconds(dstamp: i64) -> String {
     format!(
         "{}",
         Local

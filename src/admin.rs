@@ -1,3 +1,4 @@
+use super::db::now_as_useconds;
 use crate::db::{boards, posts, users};
 use diesel::SqliteConnection;
 
@@ -35,7 +36,8 @@ pub fn user_list(conn: &mut SqliteConnection) {
 }
 
 pub fn user_observe(conn: &mut SqliteConnection, node_id: &str, short_name: &str, long_name: &str) {
-    let (user, seen) = users::observe(conn, node_id, short_name, long_name).unwrap();
+    let (user, seen) =
+        users::observe(conn, node_id, short_name, long_name, now_as_useconds()).unwrap();
     println!(
         "Observed {} user #{}, '{}'",
         if seen { "existing" } else { "new" },
