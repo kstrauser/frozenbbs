@@ -17,14 +17,16 @@ pub fn observe(
     node_id: &str,
     short_name: &str,
     long_name: &str,
+    last_seen_at_us: i64,
 ) -> Result<(User, bool)> {
-    let now = now_as_useconds();
+    // Don't accept timestamps in the future.
+    let timestamp = last_seen_at_us.min(now_as_useconds());
     let new_user = NewUser {
         node_id: node_id.trim(),
         short_name: short_name.trim(),
         long_name: long_name.trim(),
-        created_at_us: &now,
-        last_seen_at_us: &now,
+        created_at_us: &timestamp,
+        last_seen_at_us: &timestamp,
         last_acted_at_us: None,
     };
     new_user.validate()?;
@@ -39,7 +41,7 @@ pub fn observe(
                         .set((
                             dsl::short_name.eq(short_name),
                             dsl::long_name.eq(long_name),
-                            dsl::last_seen_at_us.eq(now),
+                            dsl::last_seen_at_us.eq(timestamp),
                         ))
                         .returning(User::as_returning())
                         .get_result(conn)
