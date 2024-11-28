@@ -59,17 +59,14 @@ pub fn client(
             println!("Disconnected.");
             return;
         }
-        users::saw(conn, &this_user.node_id);
-        let trimmed = buffer.trim();
-        let lower = trimmed.to_lowercase();
-
+        let buffer = buffer.trim();
         let mut this_user = users::get(conn, node_id).unwrap();
-
+        users::saw(conn, &this_user.node_id);
         for command in commands.iter() {
             if !(command.available)(&this_user) {
                 continue;
             }
-            if let Some(captures) = command.pattern.captures(trimmed) {
+            if let Some(captures) = command.pattern.captures(buffer) {
                 // Collect all of the matched groups in the pattern into a vector of strs
                 let args = captures
                     .iter()
@@ -81,7 +78,7 @@ pub fn client(
                 continue 'outer;
             }
         }
-        match lower.as_str() {
+        match buffer.to_lowercase().as_str() {
             "q" => {
                 println!("buh-bye!");
                 return;
