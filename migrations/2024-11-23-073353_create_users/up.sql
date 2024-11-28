@@ -7,5 +7,6 @@ CREATE TABLE users (
   in_board INTEGER,
   created_at_us BIGINT NOT NULL,
   last_seen_at_us BIGINT NOT NULL,
+  last_acted_at_us BIGINT,
   FOREIGN KEY(in_board) REFERENCES boards(id)
 )

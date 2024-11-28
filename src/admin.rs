@@ -9,15 +9,16 @@ pub fn user_list(conn: &mut SqliteConnection) {
         "\
 # BBS users
 
-| Created at          | Last seen at        | Node ID    | Name | Long name                                |
-| ------------------- | ------------------- | ---------- | ---- | ---------------------------------------- |"
+| Created at          | Last seen at        | Last acted at       | Node ID    | Name | Long name                                |
+| ------------------- | ------------------- | ------------------- | ---------- | ---- | ---------------------------------------- |"
     );
     let mut jackasses = false;
     for user in users::all(conn) {
         println!(
-            "| {} | {} | {}{} | {:4} | {:40} |",
+            "| {} | {} | {:19} | {}{} | {:4} | {:40} |",
             user.created_at(),
             user.last_seen_at(),
+            user.last_acted_at(),
             user.node_id,
             if user.jackass { "*" } else { " " },
             user.short_name,
@@ -33,15 +34,9 @@ pub fn user_list(conn: &mut SqliteConnection) {
     }
 }
 
-pub fn user_add(
-    conn: &mut SqliteConnection,
-    node_id: &str,
-    short_name: &str,
-    long_name: &str,
-    jackass: &bool,
-) {
-    let user = users::add(conn, node_id, short_name, long_name, jackass).unwrap();
-    println!("Created user #{}, '{}'", user.id, user.node_id);
+pub fn user_observe(conn: &mut SqliteConnection, node_id: &str, short_name: &str, long_name: &str) {
+    let user = users::observe(conn, node_id, short_name, long_name).unwrap();
+    println!("Observe user #{}, '{}'", user.id, user.node_id);
 }
 
 pub fn user_ban(conn: &mut SqliteConnection, node_id: &str) {
