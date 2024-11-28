@@ -20,7 +20,13 @@ pub fn observe(
     last_seen_at_us: i64,
 ) -> Result<(User, bool)> {
     // Don't accept timestamps in the future.
-    let timestamp = last_seen_at_us.min(now_as_useconds());
+    let now = now_as_useconds();
+    let timestamp = if last_seen_at_us > 0 {
+        last_seen_at_us.min(now)
+    } else {
+        now
+    };
+
     let new_user = NewUser {
         node_id: node_id.trim(),
         short_name: short_name.trim(),
