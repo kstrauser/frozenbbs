@@ -7,7 +7,7 @@ setup:
     if which -s diesel; then
         echo Diesel is already installed.
     else
-        cargo install diesel_cli
+        cargo install diesel_cli --no-default-features --features sqlite
         echo Installed diesel.
     fi
 
