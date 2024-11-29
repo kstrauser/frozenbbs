@@ -183,7 +183,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None => {}
         },
         Some(Subsystems::Server { our_id }) => loop {
-            radio::event_loop(conn, our_id).await;
+            let _ = radio::event_loop(conn, our_id).await;
         },
         None => {}
     }

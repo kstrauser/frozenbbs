@@ -1,16 +1,18 @@
 # Frozen BBS, a message board for Meshtastic
 
-_NOTE: This doesn't do anything yet. I'm not being modest. It doesn't even have code to connect to Meshtastic yet. It will!_
-
 Frozen intends to be a radio BBS optimized for slow connections. This is the very beginning of the project.
 
-The current status is that Frozen has a SQLite backend with tables for users, message boards, and posts in those boards. It also has an admin tool to read those objects and create new ones. If you're super bored, you can use it to create users and pretend you're having a conversation with yourself. I have not done this. _Ahem._
+The current status is that Frozen has a working message board, an admin tool to manage data, a terminal client to interact with the BBS, and a (very crummy!) connection to Meshtastic radios.
+
+If is not pretty, _but it works_.
 
 It has a [Justfile](https://just.systems) to execute some common tasks like running DB migrations, backing up and restoring, and creating sample objects to poke at. Even if you don't use `just` -- and you should! you should! -- it's easy to read to see how those routine operations look.
 
 ## Building
 
 Clone this repo. Run `cargo build`. Ta-da: now it's built.
+
+I'm too embarrassed to document the absurdity of shelling out to a Python app to send messages back to remote clients. That'll be fixed soon.
 
 ## Getting started
 
@@ -52,7 +54,7 @@ $ frozenbbs admin user list
 **Adding a user**
 
 ```shell
-$ frozenbbs admin user add --id !1234abcd --short abcd --long "ABC'ing you later!"
+$ frozenbbs admin user observe --id !1234abcd
 Created user #2, '!1234abcd'
 ```
 
@@ -92,6 +94,56 @@ $ target/debug/frozenbbs admin post read -b1
 ```shell
 $ frozenbbs admin post add -b 1 -n !1234abcd -c 'Hello, GitHub readers!'
 Created post #2
+```
+
+## Running a local session
+
+```shell
+$ target/debug/frozenbbs client terminal -n !abcd1234
+Connected. ^D to quit.
+
+Command: ?
+
+Welcome to Frozen BBS!
+
+Commands:
+
+B  : Board list
+Bn : Enter board #n
+?  : Tell me where I am
+H  : This help
+You are not in a board.
+
+Command: b
+
+Boards:
+
+#1 Board Talk: Discussing this BBS itself.
+#2 Meshtastic: How did we get here?
+#3 Local: Things happening nearby.
+
+Command: b1
+
+Entering board 1
+
+Command: n
+
+From: !cafebead/FRZB:Frozen BBS
+At  : 2024-11-28T17:43:13
+Msg : First post.
+
+Command: ^D
+Disconnected.
+```
+
+## Running a server
+
+As of this writing, config is hardcoded in the source. Sorry about that. It'll change soon.
+
+```shell
+$ target/debug/frozenbbs server --our-id !f5f5a1c1
+Observed node at 1732851007: !f5f5a1c1/HPT1:Depeche Node
+[...]
 ```
 
 ## Notes

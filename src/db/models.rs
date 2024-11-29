@@ -94,9 +94,6 @@ impl fmt::Display for User {
 }
 
 impl User {
-    pub fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}:{}", self.node_id, self.short_name, self.long_name)
-    }
     pub fn created_at(&self) -> String {
         formatted_useconds(self.created_at_us)
     }
