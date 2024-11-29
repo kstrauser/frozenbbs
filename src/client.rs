@@ -3,6 +3,7 @@ use crate::db::users;
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
+/// Handle a single command from a client and return its output.
 pub fn dispatch(
     conn: &mut SqliteConnection,
     node_id: &str,

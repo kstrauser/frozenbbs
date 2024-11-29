@@ -2,7 +2,7 @@ pub mod admin;
 pub mod client;
 pub mod commands;
 pub mod db;
-pub mod radio;
+pub mod server;
 
 pub fn node_id_from_hex(node_id: &str) -> u32 {
     u32::from_str_radix(
