@@ -74,5 +74,5 @@ pub fn terminal(conn: &mut SqliteConnection, node_id: &str) {
 
 /// Run a single command.
 pub fn command(conn: &mut SqliteConnection, node_id: &str, command: &str) {
-    dispatch(conn, node_id, &setup(), command);
+    println!("{}", dispatch(conn, node_id, &setup(), command));
 }
