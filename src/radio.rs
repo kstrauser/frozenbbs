@@ -6,11 +6,10 @@ use diesel::SqliteConnection;
 use meshtastic::api::StreamApi;
 use meshtastic::utils::generate_rand_id;
 use meshtastic::utils::stream::build_tcp_stream;
+use std::process::Command;
 
 fn bullshit_send(recipient: &str, message: &str) {
-    use std::process::Command;
-
-    let b = Command::new("./meshtastic-python")
+    let _ = Command::new("./meshtastic-python")
         .args([
             "--host",
             "localhost",
@@ -21,8 +20,7 @@ fn bullshit_send(recipient: &str, message: &str) {
         ])
         .output()
         .expect("Unable to send");
-    dbg!(b);
-    println!("Sent");
+    log::debug!("Sent");
 }
 
 pub async fn event_loop(
@@ -49,11 +47,11 @@ pub async fn event_loop(
     // because I don't want to keep this horrid workaround in place too long anyway.
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some((node_id, command)) = handle_from_radio_packet(conn, our_id, decoded) {
-            println!("Received command from {}: <{}>", node_id, command);
+            log::debug!("Received command from {}: <{}>", node_id, command);
             let result = dispatch(conn, &node_id, &commands, command.trim());
-            print!("{}", &result);
+            log::debug!("Result: {}", &result);
             bullshit_send(&node_id, result.trim());
-            println!("Back in the loop");
+            log::debug!("Back in the loop");
             break;
         }
     }
@@ -80,12 +78,11 @@ fn handle_from_radio_packet(
                 &user.long_name,
                 node_info.last_heard as i64 * 1_000_000,
             ) {
-                println!(
-                    "Observed {}node at {}: {}",
-                    if seen { "" } else { "new " },
-                    node_info.last_heard,
-                    user
-                );
+                if seen {
+                    log::debug!("Observed at {}: {}", node_info.last_heard, user);
+                } else {
+                    log::info!("Observed new at {}: {}", node_info.last_heard, user);
+                }
             };
         }
         meshtastic::protobufs::from_radio::PayloadVariant::Packet(mesh_packet) => {
@@ -116,9 +113,12 @@ fn handle_mesh_packet(
     let decoded_text_message = String::from_utf8(packet_data.payload.clone()).unwrap();
     // DMs: to == radio's own ID, channel = 0
     // Public: to == 0xffffffff
-    eprintln!(
+    log::debug!(
         "USER: Received text message packet from {:x} to {:x} in channel {}: {}",
-        mesh_packet.from, mesh_packet.to, mesh_packet.channel, decoded_text_message
+        mesh_packet.from,
+        mesh_packet.to,
+        mesh_packet.channel,
+        decoded_text_message
     );
     if mesh_packet.to != our_id {
         return None;
