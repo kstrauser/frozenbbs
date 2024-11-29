@@ -3,6 +3,9 @@
 /// https://meshtastic.org/docs/software/linux-native#usage-with-docker
 use diesel::SqliteConnection;
 extern crate meshtastic;
+use crate::client::dispatch;
+use crate::commands::setup;
+use crate::node_id_from_hex;
 use meshtastic::api::StreamApi;
 use meshtastic::utils;
 
@@ -36,7 +39,7 @@ use std::time::SystemTime;
 fn bullshit_send(recipient: &str, message: &str) {
     use std::process::Command;
 
-    Command::new("./meshtastic-python")
+    let b = Command::new("./meshtastic-python")
         .args([
             "--host",
             "localhost",
@@ -47,18 +50,23 @@ fn bullshit_send(recipient: &str, message: &str) {
         ])
         .output()
         .expect("Unable to send");
+    dbg!(b);
     println!("Sent");
 }
 
-pub async fn event_loop(conn: &mut SqliteConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn event_loop(
+    conn: &mut SqliteConnection,
+    our_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Uncomment this to enable logging
     // setup_logger()?;
 
     let stream_api = StreamApi::new();
+    let our_id = node_id_from_hex(our_id);
 
-    println!("Enter the address of a TCP port to connect to, in the form \"IP:PORT\":");
+    // println!("Enter the address of a TCP port to connect to, in the form \"IP:PORT\":");
 
-    let stdin = io::stdin();
+    // let stdin = io::stdin();
     // let entered_address = stdin
     //     .lock()
     //     .lines()
@@ -80,12 +88,21 @@ pub async fn event_loop(conn: &mut SqliteConnection) -> Result<(), Box<dyn std::
     let tcp_stream = build_tcp_stream("localhost:4403".to_string()).await?;
     let (_decoded_listener, stream_api) = stream_api.connect(tcp_stream).await;
     let config_id = generate_rand_id();
-    let mut stream_api = stream_api.configure(config_id).await?;
+    let stream_api = stream_api.configure(config_id).await?;
+
+    let commands = setup();
 
     // This loop can be broken with ctrl+c, or by unpowering the radio.
     while let Some(decoded) = decoded_listener.recv().await {
         // println!("Received: {:?}", decoded);
-        handle_from_radio_packet(conn, decoded);
+        if let Some((node_id, command)) = handle_from_radio_packet(conn, our_id, decoded) {
+            println!("Received command from {}: <{}>", node_id, command);
+            let result = dispatch(conn, &node_id, &commands, command.trim());
+            print!("{}", &result);
+            bullshit_send(&node_id, &result.trim());
+            println!("Back in the loop");
+            break;
+        }
     }
 
     // Note that in this specific example, this will only be called when
@@ -97,26 +114,27 @@ pub async fn event_loop(conn: &mut SqliteConnection) -> Result<(), Box<dyn std::
     Ok(())
 }
 
+fn hex_node(node_num: u32) -> String {
+    format!("!{:x}", node_num)
+}
+
 /// A helper function to handle packets coming directly from the radio connection.
 /// The Meshtastic `PhoneAPI` will return decoded `FromRadio` packets, which
 /// can then be handled based on their payload variant. Note that the payload
 /// variant can be `None`, in which case the packet should be ignored.
 fn handle_from_radio_packet(
     conn: &mut SqliteConnection,
+    our_id: u32,
     from_radio_packet: meshtastic::protobufs::FromRadio,
-) {
+) -> Option<(String, String)> {
     // Remove `None` variants to get the payload variant
     let payload_variant = match from_radio_packet.payload_variant {
         Some(payload_variant) => payload_variant,
         None => {
             // println!("Received FromRadio packet with no payload variant, not handling...");
-            return;
+            return None;
         }
     };
-
-    fn hex_node(node_num: i32) -> String {
-        format!("!{:x}", node_num)
-    }
 
     // `FromRadio` packets can be differentiated based on their payload variant,
     // which in Rust is represented as an enum. This means the payload variant
@@ -146,12 +164,15 @@ fn handle_from_radio_packet(
         }
         meshtastic::protobufs::from_radio::PayloadVariant::Packet(mesh_packet) => {
             // println!("Received mesh pack: {:?}", mesh_packet);
-            handle_mesh_packet(mesh_packet);
+            if let Some((node_id, command)) = handle_mesh_packet(mesh_packet, our_id) {
+                return Some((node_id, command));
+            }
         }
         _ => {
             // println!("Received other FromRadio packet, not handling...");
         }
     };
+    None
 }
 
 /// A helper function to handle `MeshPacket` messages, which are a subset
@@ -161,13 +182,16 @@ fn handle_from_radio_packet(
 ///
 /// Mesh packets are the most commonly used type of packet, and are usually
 /// what people are referring to when they talk about "packets."
-fn handle_mesh_packet(mesh_packet: meshtastic::protobufs::MeshPacket) {
+fn handle_mesh_packet(
+    mesh_packet: meshtastic::protobufs::MeshPacket,
+    our_id: u32,
+) -> Option<(String, String)> {
     // Remove `None` variants to get the payload variant
     let payload_variant = match &mesh_packet.payload_variant {
         Some(payload_variant) => payload_variant,
         None => {
             // println!("Received mesh packet with no payload variant, not handling...");
-            return;
+            return None;
         }
     };
 
@@ -178,7 +202,7 @@ fn handle_mesh_packet(mesh_packet: meshtastic::protobufs::MeshPacket) {
         }
         meshtastic::protobufs::mesh_packet::PayloadVariant::Encrypted(_encrypted_mesh_packet) => {
             // println!("Received encrypted mesh packet, not handling...");
-            return;
+            return None;
         }
     };
 
@@ -203,10 +227,14 @@ fn handle_mesh_packet(mesh_packet: meshtastic::protobufs::MeshPacket) {
             // println!("USER: {:?}", &packet_data);
             // DMs: to == radio's own ID, channel = 0
             // Public: to == 0xffffffff
-            println!(
+            eprintln!(
                 "USER: Received text message packet from {:x} to {:x} in channel {}: {}",
                 mesh_packet.from, mesh_packet.to, mesh_packet.channel, decoded_text_message
             );
+            if mesh_packet.to == our_id {
+                return Some((hex_node(mesh_packet.from), decoded_text_message));
+            }
+            None
         }
         //         meshtastic::protobufs::PortNum::WaypointApp => {
         //             let decoded_waypoint =
@@ -219,6 +247,7 @@ fn handle_mesh_packet(mesh_packet: meshtastic::protobufs::MeshPacket) {
             //     "Received mesh packet on port {:?}, not handling...",
             //     packet_data.portnum
             // );
+            None
         }
     }
 }
