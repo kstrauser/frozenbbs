@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, client, db, radio};
+use frozenbbs::{admin, client, db, server};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
@@ -191,7 +191,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None => {}
         },
         Some(Subsystems::Server { our_id }) => loop {
-            let _ = radio::event_loop(conn, our_id).await;
+            let _ = server::event_loop(conn, our_id).await;
         },
         None => {}
     }
