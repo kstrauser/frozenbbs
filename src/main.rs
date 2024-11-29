@@ -1,9 +1,11 @@
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{admin, client, db, radio};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
 struct Cli {
+    #[arg(short,long,action=ArgAction::Count)]
+    verbose: u8,
     #[command(subcommand)]
     command: Option<Subsystems>,
 }
@@ -138,10 +140,16 @@ enum ClientCommands {
         command: String,
     },
 }
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-
+    let level = match cli.verbose {
+        0 => log::Level::Warn,
+        1 => log::Level::Info,
+        _ => log::Level::Debug,
+    };
+    simple_logger::init_with_level(level).unwrap();
     let conn = &mut db::establish_connection();
 
     match &cli.command {

@@ -11,7 +11,10 @@ pub fn dispatch(
 ) -> String {
     let mut out: String = "".to_string();
     let (mut user, seen) = users::record(conn, node_id).unwrap();
-    if !seen {
+    if seen {
+        log::info!("Command from {}: '{}'", user, cmdline);
+    } else {
+        log::info!("Command from new {}: '{}'", user, cmdline);
         out.push_str("Welcome to Frozen BBS!\n\n");
         out.push_str(&help(&user, commands));
     }
