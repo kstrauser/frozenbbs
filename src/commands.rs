@@ -168,7 +168,7 @@ pub struct Command {
 /// Build a Regex in our common fashion.
 fn make_pattern(pattern: &str) -> Regex {
     RegexBuilder::new(format!("^{}$", pattern).as_str())
-        .case_insensitive(false)
+        .case_insensitive(true)
         .build()
         .unwrap()
 }

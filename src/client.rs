@@ -3,11 +3,17 @@ use crate::db::users;
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
-fn dispatch(conn: &mut SqliteConnection, node_id: &str, commands: &Vec<Command>, cmdline: &str) {
+pub fn dispatch(
+    conn: &mut SqliteConnection,
+    node_id: &str,
+    commands: &Vec<Command>,
+    cmdline: &str,
+) -> String {
+    let mut out: String = "".to_string();
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if !seen {
-        println!("Welcome to Frozen BBS!\n");
-        help(&user, commands);
+        out.push_str("Welcome to Frozen BBS!\n\n");
+        out.push_str(&help(&user, commands));
     }
     for command in commands.iter() {
         if !(command.available)(&user) {
@@ -21,17 +27,21 @@ fn dispatch(conn: &mut SqliteConnection, node_id: &str, commands: &Vec<Command>,
                 .flatten()
                 .map(|x| x.as_str().trim())
                 .collect();
-            print!("{}", (command.func)(conn, &mut user, args));
-            return;
+            out.push_str(&(command.func)(conn, &mut user, args));
+            return out;
         }
+    }
+    if !seen {
+        return out;
     }
     match cmdline.to_lowercase().as_str() {
         "h" => {}
         _ => {
-            println!("That's not an available command here.\n");
+            out.push_str("That's not an available command here.\n\n");
         }
     }
-    print!("{}", help(&user, commands));
+    out.push_str(&help(&user, commands));
+    out
 }
 
 /// Run a session from the local terminal.
@@ -54,7 +64,7 @@ pub fn terminal(conn: &mut SqliteConnection, node_id: &str) {
             println!("Disconnected.");
             return;
         }
-        dispatch(conn, node_id, &commands, command.trim());
+        print!("{}", dispatch(conn, node_id, &commands, command.trim()));
     }
 }
 

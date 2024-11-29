@@ -17,7 +17,10 @@ enum Subsystems {
         client_command: Option<ClientCommands>,
     },
     /// Server commands
-    Server {},
+    Server {
+        #[arg(short, long)]
+        our_id: String,
+    },
     /// Admin commands
     #[command(arg_required_else_help = true)]
     Admin {
@@ -179,7 +182,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             None => {}
         },
-        Some(Subsystems::Server {}) => return radio::event_loop(conn).await,
+        Some(Subsystems::Server { our_id }) => loop {
+            radio::event_loop(conn, our_id).await;
+        },
         None => {}
     }
     Ok(())
