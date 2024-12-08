@@ -4,6 +4,7 @@ use regex::{Regex, RegexBuilder};
 
 const NO_BOARDS: &str = "There are no boards.";
 const NO_MORE_POSTS: &str = "There are no more posts in this board.";
+const NO_SUCH_POST: &str = "There is no post here.";
 const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "Not a valid number!";
 
@@ -57,6 +58,22 @@ Msg : {}
     )
 }
 
+/// Get the current message in the board.
+fn board_current(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
+    let in_board = match user.in_board {
+        Some(v) => v,
+        None => {
+            return format!("{}\n", NOT_IN_BOARD);
+        }
+    };
+    let last_seen = board_states::get(conn, user.id, in_board);
+    if let Ok((post, post_user)) = posts::current(conn, in_board, last_seen) {
+        post_print(&post, &post_user)
+    } else {
+        format!("{}\n", NO_SUCH_POST)
+    }
+}
+
 /// Get the previous message in the board.
 fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
     let in_board = match user.in_board {
@@ -70,9 +87,6 @@ fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>
         board_states::update(conn, user.id, in_board, post.created_at_us);
         post_print(&post, &post_user)
     } else {
-        if last_seen != 0 {
-            board_states::update(conn, user.id, in_board, last_seen - 1);
-        }
         format!("{}\n", NO_MORE_POSTS)
     }
 }
@@ -90,9 +104,6 @@ fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) ->
         board_states::update(conn, user.id, in_board, post.created_at_us);
         post_print(&post, &post_user)
     } else {
-        if last_seen != 0 {
-            board_states::update(conn, user.id, in_board, last_seen + 1);
-        }
         format!("{}\n", NO_MORE_POSTS)
     }
 }
@@ -188,6 +199,13 @@ pub fn setup() -> Vec<Command> {
             pattern: make_pattern(r"b(\d+)"),
             available: available_always,
             func: board_enter,
+        },
+        Command {
+            arg: "R".to_string(),
+            help: "Read the current message in the board".to_string(),
+            pattern: make_pattern("r"),
+            available: available_in_board,
+            func: board_current,
         },
         Command {
             arg: "P".to_string(),
