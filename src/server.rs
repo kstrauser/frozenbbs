@@ -1,7 +1,7 @@
 use crate::client::dispatch;
 use crate::commands::setup;
 use crate::db::users;
-use crate::node_id_from_hex;
+use crate::{hex_id_to_num, num_id_to_hex};
 use diesel::SqliteConnection;
 use meshtastic::api::StreamApi;
 use meshtastic::utils::generate_rand_id;
@@ -28,7 +28,7 @@ pub async fn event_loop(
     our_id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let stream_api = StreamApi::new();
-    let our_id = node_id_from_hex(our_id);
+    let our_id = hex_id_to_num(our_id);
     let entered_address = "localhost:4403".to_string();
 
     let tcp_stream = build_tcp_stream(entered_address).await?;
@@ -57,10 +57,6 @@ pub async fn event_loop(
     }
     let _stream_api = stream_api.disconnect().await?;
     Ok(())
-}
-
-fn hex_node(node_num: u32) -> String {
-    format!("!{:x}", node_num)
 }
 
 fn handle_from_radio_packet(
@@ -114,14 +110,14 @@ fn handle_mesh_packet(
     // DMs: to == radio's own ID, channel = 0
     // Public: to == 0xffffffff
     log::debug!(
-        "USER: Received text message packet from {:x} to {:x} in channel {}: {}",
-        mesh_packet.from,
-        mesh_packet.to,
+        "USER: Received text message packet from {} to {} in channel {}: {}",
+        num_id_to_hex(mesh_packet.from),
+        num_id_to_hex(mesh_packet.to),
         mesh_packet.channel,
         decoded_text_message
     );
     if mesh_packet.to != our_id {
         return None;
     }
-    Some((hex_node(mesh_packet.from), decoded_text_message))
+    Some((num_id_to_hex(mesh_packet.from), decoded_text_message))
 }

@@ -1,5 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, client, db, server};
+use frozenbbs::{admin, client, db, server_mqtt as server, BBSConfig};
+
+// The command line layout
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
@@ -19,10 +21,7 @@ enum Subsystems {
         client_command: Option<ClientCommands>,
     },
     /// Server commands
-    Server {
-        #[arg(short, long)]
-        our_id: String,
-    },
+    Server {},
     /// Admin commands
     #[command(arg_required_else_help = true)]
     Admin {
@@ -141,8 +140,7 @@ enum ClientCommands {
     },
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let cli = Cli::parse();
     let level = match cli.verbose {
         0 => log::Level::Warn,
@@ -151,6 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     simple_logger::init_with_level(level).unwrap();
     let conn = &mut db::establish_connection();
+    let cfg: BBSConfig = confy::load("frozenbbs", None).unwrap();
 
     match &cli.command {
         Some(Subsystems::Admin { admin_command }) => match admin_command {
@@ -186,14 +185,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Subsystems::Client { client_command }) => match client_command {
             Some(ClientCommands::Terminal { node_id }) => client::terminal(conn, node_id),
             Some(ClientCommands::Command { node_id, command }) => {
-                client::command(conn, node_id, command)
+                for _ in 0..10_000 {
+                    client::command(conn, node_id, command)
+                }
             }
             None => {}
         },
-        Some(Subsystems::Server { our_id }) => loop {
-            let _ = server::event_loop(conn, our_id).await;
-        },
+        Some(Subsystems::Server {}) => server::event_loop(conn, &cfg),
         None => {}
     }
-    Ok(())
 }
