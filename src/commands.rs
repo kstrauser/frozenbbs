@@ -137,6 +137,20 @@ pub fn help(user: &User, commands: &Vec<Command>) -> String {
     let mut out = String::new();
     out.push_str("Commands:\n\n");
     // Get the width of the widest argument of any available command.
+    for command in commands {
+        if (command.available)(user) {
+            out.push_str(&format!("{} : {}\n", command.arg, command.help));
+        }
+    }
+    out.push_str("H : This help\n");
+    out
+}
+
+/// Show the user all commands available to them right now in a needlessly pretty format.
+pub fn _help(user: &User, commands: &Vec<Command>) -> String {
+    let mut out = String::new();
+    out.push_str("Commands:\n\n");
+    // Get the width of the widest argument of any available command.
     let width = commands
         .iter()
         .filter(|x| (x.available)(user))

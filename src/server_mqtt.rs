@@ -86,7 +86,12 @@ fn handle_packet(
 }
 
 fn bullshit_send(cfg: &BBSConfig, recipient: &str, message: &str) {
-    log::debug!("Sending {} to {}", message, recipient);
+    log::debug!(
+        "Sending {} to {}, length {}",
+        message,
+        recipient,
+        message.len()
+    );
     let _ = std::process::Command::new(&cfg.meshtastic_python_path)
         .args([
             "--host",
