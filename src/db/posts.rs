@@ -31,6 +31,22 @@ pub fn in_board(conn: &mut SqliteConnection, board_id: i32) -> Vec<(Post, User)>
         .expect("Error loading posts")
 }
 
+/// Get the post with this timestamp.
+pub fn current(
+    conn: &mut SqliteConnection,
+    board_id: i32,
+    last_timestamp: i64,
+) -> QueryResult<(Post, User)> {
+    posts_dsl::posts
+        .inner_join(users_dsl::users)
+        .select((Post::as_select(), User::as_select()))
+        .filter(posts_dsl::board_id.eq(board_id))
+        .filter(posts_dsl::created_at_us.eq(last_timestamp))
+        .filter(users_dsl::jackass.eq(false))
+        .limit(1)
+        .first::<(Post, User)>(conn)
+}
+
 /// Get the first post in the board newer than this one.
 pub fn after(
     conn: &mut SqliteConnection,
