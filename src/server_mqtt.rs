@@ -63,9 +63,9 @@ fn handle_packet(
         let message = std::str::from_utf8(&variant.payload);
         let command = message.unwrap();
         log::debug!("Received command from {}: <{}>", node_id, command);
-        let result = dispatch(conn, &node_id, commands, command.trim());
-        log::debug!("Result: {}", &result);
-        bullshit_send(cfg, &node_id, result.trim());
+        let out = dispatch(conn, &node_id, commands, command.trim());
+        log::debug!("Result: {:?}", &out);
+        bullshit_send(cfg, &node_id, &out.join("\n"));
     }
     if variant.portnum == PortNum::NodeinfoApp as i32 {
         let user = User::decode(&variant.payload[..]).unwrap();

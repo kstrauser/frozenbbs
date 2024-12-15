@@ -48,9 +48,9 @@ pub async fn event_loop(
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some((node_id, command)) = handle_from_radio_packet(conn, our_id, decoded) {
             log::debug!("Received command from {}: <{}>", node_id, command);
-            let result = dispatch(conn, &node_id, &commands, command.trim());
-            log::debug!("Result: {}", &result);
-            bullshit_send(&node_id, result.trim());
+            let out = dispatch(conn, &node_id, &commands, command.trim());
+            log::debug!("Result: {:?}", &out);
+            bullshit_send(&node_id, &out.join("\n"));
             log::debug!("Back in the loop");
             break;
         }
