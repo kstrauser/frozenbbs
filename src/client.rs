@@ -9,15 +9,15 @@ pub fn dispatch(
     node_id: &str,
     commands: &Vec<Command>,
     cmdline: &str,
-) -> String {
-    let mut out: String = "".to_string();
+) -> Vec<String> {
+    let mut out = Vec::new();
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if seen {
         log::info!("Command from {}: '{}'", user, cmdline);
     } else {
         log::info!("Command from new {}: '{}'", user, cmdline);
-        out.push_str("Welcome to Frozen BBS!\n\n");
-        out.push_str(&help(&user, commands));
+        out.push("Welcome to Frozen BBS!\n".to_string());
+        out.extend(help(&user, commands));
     }
     for command in commands.iter() {
         if !(command.available)(&user) {
@@ -31,7 +31,7 @@ pub fn dispatch(
                 .flatten()
                 .map(|x| x.as_str().trim())
                 .collect();
-            out.push_str(&(command.func)(conn, &mut user, args));
+            out.extend((command.func)(conn, &mut user, args));
             return out;
         }
     }
@@ -41,10 +41,10 @@ pub fn dispatch(
     match cmdline.to_lowercase().as_str() {
         "h" => {}
         _ => {
-            out.push_str("That's not an available command here.\n\n");
+            out.push("That's not an available command here.\n".to_string());
         }
     }
-    out.push_str(&help(&user, commands));
+    out.extend(help(&user, commands));
     out
 }
 
@@ -68,11 +68,14 @@ pub fn terminal(conn: &mut SqliteConnection, node_id: &str) {
             println!("Disconnected.");
             return;
         }
-        print!("{}", dispatch(conn, node_id, &commands, command.trim()));
+        print!(
+            "{}",
+            dispatch(conn, node_id, &commands, command.trim()).join("\n")
+        );
     }
 }
 
 /// Run a single command.
 pub fn command(conn: &mut SqliteConnection, node_id: &str, command: &str) {
-    println!("{}", dispatch(conn, node_id, &setup(), command));
+    println!("{}", dispatch(conn, node_id, &setup(), command).join("\n"));
 }

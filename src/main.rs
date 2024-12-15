@@ -185,9 +185,7 @@ fn main() {
         Some(Subsystems::Client { client_command }) => match client_command {
             Some(ClientCommands::Terminal { node_id }) => client::terminal(conn, node_id),
             Some(ClientCommands::Command { node_id, command }) => {
-                for _ in 0..10_000 {
-                    client::command(conn, node_id, command)
-                }
+                client::command(conn, node_id, command)
             }
             None => {}
         },

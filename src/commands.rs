@@ -9,16 +9,16 @@ const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "Not a valid number!";
 
 /// List all the boards.
-fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> String {
+fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> Vec<String> {
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
-        return format!("{}\n", NO_BOARDS);
+        return vec![NO_BOARDS.to_string()];
     }
-    let mut out = String::new();
-    out.push_str("Boards:\n\n");
+    let mut out = Vec::new();
+    out.push("Boards:\n".to_string());
     for board in boards::all(conn) {
-        out.push_str(&format!(
-            "#{} {}: {}\n",
+        out.push(format!(
+            "#{} {}: {}",
             board.id, board.name, board.description
         ));
     }
@@ -26,60 +26,55 @@ fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>)
 }
 
 /// Enter a board.
-fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> String {
+fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> Vec<String> {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
-            return format!("{}\n", NOT_VALID);
+            return vec![NOT_VALID.to_string()];
         }
     };
     let count = boards::count(conn);
     if count == 0 {
-        return format!("{}\n", NO_BOARDS);
+        return vec![NO_BOARDS.to_string()];
     }
     if num < 1 || num > count {
-        return format!("Board number must be between 1 and {}\n", count);
+        return vec![format!("Board number must be between 1 and {}\n", count)];
     }
     let _ = users::enter_board(conn, user, num);
-    format!("Entering board {}\n", num)
+    vec![format!("Entering board {}\n", num)]
 }
 
 /// Print a post and information about its author.
-fn post_print(post: &Post, user: &User) -> String {
-    format!(
-        "\
-From: {}
-At  : {}
-Msg : {}
-",
-        user,
-        post.created_at(),
-        post.body
-    )
+fn post_print(post: &Post, user: &User) -> Vec<String> {
+    vec![
+        format!("From: {}", user),
+        format!("At: {}", post.created_at()),
+        post.body.to_string(),
+    ]
 }
 
 /// Get the current message in the board.
-fn board_current(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
+fn board_current(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return format!("{}\n", NOT_IN_BOARD);
+            return vec![NOT_IN_BOARD.to_string()];
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::current(conn, in_board, last_seen) {
         post_print(&post, &post_user)
     } else {
-        format!("{}\n", NO_SUCH_POST)
+        vec![NO_SUCH_POST.to_string()]
     }
 }
 
 /// Get the previous message in the board.
-fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
+fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return format!("{}\n", NOT_IN_BOARD);
+            return vec![NOT_IN_BOARD.to_string()];
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
@@ -87,16 +82,16 @@ fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>
         board_states::update(conn, user.id, in_board, post.created_at_us);
         post_print(&post, &post_user)
     } else {
-        format!("{}\n", NO_MORE_POSTS)
+        vec![NO_MORE_POSTS.to_string()]
     }
 }
 
 /// Get the next message in the board.
-fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
+fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return format!("{}\n", NOT_IN_BOARD);
+            return vec![NOT_IN_BOARD.to_string()];
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
@@ -104,65 +99,49 @@ fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) ->
         board_states::update(conn, user.id, in_board, post.created_at_us);
         post_print(&post, &post_user)
     } else {
-        format!("{}\n", NO_MORE_POSTS)
+        vec![NO_MORE_POSTS.to_string()]
     }
 }
 
 /// Add a new post to the board.
-fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> String {
+fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return format!("{}\n", NOT_IN_BOARD);
+            return vec![NOT_IN_BOARD.to_string()];
         }
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
-    format!("Published at {}.\n", post.created_at())
+    vec![format!("Published at {}.\n", post.created_at())]
 }
 
 /// Tell the user where they are.
-pub fn state_describe(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> String {
+pub fn state_describe(
+    conn: &mut SqliteConnection,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return format!("{}\n", NOT_IN_BOARD);
+            return vec![NOT_IN_BOARD.to_string()];
         }
     };
     let board = boards::get(conn, in_board).unwrap();
-    format!("You are in board #{}: {}\n", in_board, board.name)
+    vec![format!("You are in board #{}: {}\n", in_board, board.name)]
 }
 
 /// Show the user all commands available to them right now.
-pub fn help(user: &User, commands: &Vec<Command>) -> String {
-    let mut out = String::new();
-    out.push_str("Commands:\n\n");
+pub fn help(user: &User, commands: &Vec<Command>) -> Vec<String> {
+    let mut out = Vec::new();
+    out.push("Commands:\n".to_string());
     // Get the width of the widest argument of any available command.
     for command in commands {
         if (command.available)(user) {
-            out.push_str(&format!("{} : {}\n", command.arg, command.help));
+            out.push(format!("{} : {}", command.arg, command.help));
         }
     }
-    out.push_str("H : This help\n");
-    out
-}
-
-/// Show the user all commands available to them right now in a needlessly pretty format.
-pub fn _help(user: &User, commands: &Vec<Command>) -> String {
-    let mut out = String::new();
-    out.push_str("Commands:\n\n");
-    // Get the width of the widest argument of any available command.
-    let width = commands
-        .iter()
-        .filter(|x| (x.available)(user))
-        .map(|x| x.arg.len())
-        .max()
-        .unwrap();
-    for command in commands {
-        if (command.available)(user) {
-            out.push_str(&format!("{:width$} : {}\n", command.arg, command.help));
-        }
-    }
-    out.push_str(&format!("{:width$} : This help\n", "H"));
+    out.push("H : This help".to_string());
     out
 }
 
@@ -187,7 +166,7 @@ pub struct Command {
     /// A function that determines whether the user in this state can run this command.
     pub available: fn(&User) -> bool,
     /// The function that implements this command.
-    pub func: fn(&mut SqliteConnection, &mut User, Vec<&str>) -> String,
+    pub func: fn(&mut SqliteConnection, &mut User, Vec<&str>) -> Vec<String>,
 }
 
 /// Build a Regex in our common fashion.
