@@ -1,12 +1,10 @@
-pub type CommandOut = Vec<String>;
-
-const MAX_LENGTH: usize = 200;
+pub const MAX_LENGTH: usize = 200;
 
 fn footer(m: usize, n: usize) -> String {
     format!("\n\nPage {}/{}", m, n)
 }
 
-pub fn paginate(lines: CommandOut, max_length: usize) -> Vec<String> {
+pub fn paginate(lines: Vec<String>, max_length: usize) -> Vec<String> {
     let one_page = lines.join("\n");
     if one_page.len() <= max_length {
         return vec![one_page];

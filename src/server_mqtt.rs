@@ -1,3 +1,4 @@
+use crate::paginate::{paginate, MAX_LENGTH};
 use crate::{client::dispatch, commands, db::users, hex_id_to_num, num_id_to_hex, BBSConfig};
 use diesel::SqliteConnection;
 use meshtastic::protobufs::{mesh_packet, PortNum, ServiceEnvelope, User};
@@ -65,7 +66,9 @@ fn handle_packet(
         log::debug!("Received command from {}: <{}>", node_id, command);
         let out = dispatch(conn, &node_id, commands, command.trim());
         log::debug!("Result: {:?}", &out);
-        bullshit_send(cfg, &node_id, &out.join("\n"));
+        for page in paginate(out, MAX_LENGTH) {
+            bullshit_send(cfg, &node_id, &page);
+        }
     }
     if variant.portnum == PortNum::NodeinfoApp as i32 {
         let user = User::decode(&variant.payload[..]).unwrap();
