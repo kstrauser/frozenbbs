@@ -38,10 +38,10 @@ fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) ->
         return vec![NO_BOARDS.to_string()];
     }
     if num < 1 || num > count {
-        return vec![format!("Board number must be between 1 and {}\n", count)];
+        return vec![format!("Board number must be between 1 and {}", count)];
     }
     let _ = users::enter_board(conn, user, num);
-    vec![format!("Entering board {}\n", num)]
+    vec![format!("Entering board {}", num)]
 }
 
 /// Print a post and information about its author.
@@ -112,7 +112,7 @@ fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) ->
         }
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
-    vec![format!("Published at {}.\n", post.created_at())]
+    vec![format!("Published at {}", post.created_at())]
 }
 
 /// Tell the user where they are.
@@ -128,7 +128,7 @@ pub fn state_describe(
         }
     };
     let board = boards::get(conn, in_board).unwrap();
-    vec![format!("You are in board #{}: {}\n", in_board, board.name)]
+    vec![format!("You are in board #{}: {}", in_board, board.name)]
 }
 
 /// Show the user all commands available to them right now.
