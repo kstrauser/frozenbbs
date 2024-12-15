@@ -2,6 +2,7 @@ pub mod admin;
 pub mod client;
 pub mod commands;
 pub mod db;
+pub mod paginate;
 pub mod server;
 pub mod server_mqtt;
 use serde::{Deserialize, Serialize};
