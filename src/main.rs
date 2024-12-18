@@ -148,8 +148,8 @@ fn main() {
         _ => log::Level::Debug,
     };
     simple_logger::init_with_level(level).unwrap();
-    let conn = &mut db::establish_connection();
     let cfg: BBSConfig = confy::load("frozenbbs", None).unwrap();
+    let conn = &mut db::establish_connection(&cfg);
 
     match &cli.command {
         Some(Subsystems::Admin { admin_command }) => match admin_command {

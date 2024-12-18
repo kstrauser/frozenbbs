@@ -25,6 +25,7 @@ fn num_id_to_hex(node_num: u32) -> String {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BBSConfig {
+    db_path: String,
     my_id: String,
     mqtt_root: String,
     // Identifies this program to the MQTT broker
@@ -39,7 +40,10 @@ pub struct BBSConfig {
 
 impl ::std::default::Default for BBSConfig {
     fn default() -> Self {
+        let xdg_dirs = xdg::BaseDirectories::with_prefix("frozenbbs").unwrap();
+        dbg!(xdg_dirs);
         Self {
+            db_path: "foo".into(),
             my_id: "cafeb33d".into(),
             mqtt_root: "msh".into(),
             mqtt_id: "frozenbbs".into(),
