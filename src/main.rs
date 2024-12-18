@@ -1,5 +1,6 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{admin, client, db, server_serial as server, BBSConfig};
+use log::LevelFilter;
 
 // The command line layout
 
@@ -156,12 +157,20 @@ enum ClientCommands {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let level = match cli.verbose {
-        0 => log::Level::Warn,
-        1 => log::Level::Info,
-        _ => log::Level::Debug,
+    // Crank up the BBS and Meshtastic logging as verbosity increases.
+    let (bbs_level, radio_level) = match cli.verbose {
+        0 => (LevelFilter::Warn, LevelFilter::Off),
+        1 => (LevelFilter::Info, LevelFilter::Off),
+        2 => (LevelFilter::Debug, LevelFilter::Off),
+        3 => (LevelFilter::Debug, LevelFilter::Error),
+        4 => (LevelFilter::Debug, LevelFilter::Info),
+        _ => (LevelFilter::Debug, LevelFilter::Debug),
     };
-    simple_logger::init_with_level(level).unwrap();
+    simple_logger::SimpleLogger::new()
+        .with_module_level("meshtastic::connections", radio_level)
+        .with_level(bbs_level)
+        .init()
+        .unwrap();
     let cfg: BBSConfig = confy::load("frozenbbs", None).unwrap();
     let conn = &mut db::establish_connection(&cfg);
 
