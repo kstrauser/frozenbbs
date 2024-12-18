@@ -1,5 +1,6 @@
 use super::db::now_as_useconds;
 use crate::db::{boards, posts, users};
+use crate::BBSConfig;
 use diesel::SqliteConnection;
 
 // Today, for now, it's OK to fail when running user commands! A human will see the results,
@@ -78,6 +79,11 @@ pub fn board_list(conn: &mut SqliteConnection) {
 pub fn board_add(conn: &mut SqliteConnection, name: &str, description: &str) {
     let board = boards::add(conn, name, description).unwrap();
     println!("Created board #{}, '{}'", board.id, board.name);
+}
+
+/// Print the path to the SQLite database file.
+pub fn db_path(cfg: BBSConfig) {
+    println!("{}", cfg.db_path);
 }
 
 pub fn post_read(conn: &mut SqliteConnection, board_id: i32) {
