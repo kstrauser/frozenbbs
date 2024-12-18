@@ -1,3 +1,4 @@
+use crate::hex_id_to_num;
 use crate::paginate::{paginate, MAX_LENGTH};
 use crate::{client::dispatch, commands, db::users, num_id_to_hex, BBSConfig};
 use diesel::SqliteConnection;
@@ -26,9 +27,7 @@ impl Display for TestRouterError {
 impl Error for TestRouterError {}
 
 // Metadata type for demonstration
-pub struct HandlerMetadata {
-    should_update_db: bool,
-}
+pub struct HandlerMetadata {}
 
 // Your packet router implementation
 pub struct TestPacketRouter {
@@ -41,11 +40,9 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         packet: FromRadio,
     ) -> Result<HandlerMetadata, TestRouterError> {
         // Check the packet
-        println!("{:#?}", packet);
+        log::debug!("{:#?}", packet);
 
-        Ok(HandlerMetadata {
-            should_update_db: false,
-        })
+        Ok(HandlerMetadata {})
     }
 
     fn handle_mesh_packet(
@@ -53,16 +50,14 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         packet: MeshPacket,
     ) -> Result<HandlerMetadata, TestRouterError> {
         // Check the packet
-        println!("{:#?}", packet);
+        log::debug!("{:#?}", packet);
 
-        Ok(HandlerMetadata {
-            should_update_db: false,
-        })
+        Ok(HandlerMetadata {})
     }
 
     fn source_node_id(&self) -> NodeId {
         // Return the current node's ID
-        println!("My_id requested: value is {}", self.my_id);
+        log::debug!("My_id requested: value is {}", self.my_id);
         self.my_id
     }
 }
@@ -81,7 +76,7 @@ pub async fn event_loop(
     let config_id = utils::generate_rand_id();
     let mut stream_api = stream_api.configure(config_id).await?;
 
-    let my_id: u32 = 4126515649;
+    let my_id = hex_id_to_num(&cfg.my_id);
     let mut router = TestPacketRouter {
         my_id: my_id.into(),
     };
@@ -139,7 +134,6 @@ fn handle_packet(
     }
     if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = User::decode(&decoded.payload[..]).unwrap();
-        dbg!(&user);
         if let Ok((bbs_user, seen)) = users::observe(
             conn,
             &user.id,
