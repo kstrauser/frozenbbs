@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, client, db, server_mqtt as server, BBSConfig};
+use frozenbbs::{admin, client, db, server_serial as server, BBSConfig};
 
 // The command line layout
 
@@ -140,7 +140,8 @@ enum ClientCommands {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
     let level = match cli.verbose {
         0 => log::Level::Warn,
@@ -189,7 +190,7 @@ fn main() {
             }
             None => {}
         },
-        Some(Subsystems::Server {}) => server::event_loop(conn, &cfg),
+        Some(Subsystems::Server {}) => server::event_loop(conn, &cfg).await.unwrap(),
         None => {}
     }
 }
