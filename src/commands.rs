@@ -131,6 +131,26 @@ pub fn state_describe(
     vec![format!("You are in board #{}: {}", in_board, board.name)]
 }
 
+/// Show the most recently active users.
+pub fn user_active(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> Vec<String> {
+    let mut out = Vec::new();
+    out.push("Active users:\n".to_string());
+    for user in users::recently_active(conn, 10) {
+        out.push(format!("{}: {}", user.last_acted_at(), user));
+    }
+    out
+}
+
+/// Show the most recently seen users.
+pub fn user_seen(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> Vec<String> {
+    let mut out = Vec::new();
+    out.push("Seen users:\n".to_string());
+    for user in users::recently_seen(conn, 10) {
+        out.push(format!("{}: {}", user.last_seen_at(), user));
+    }
+    out
+}
+
 /// Show the user all commands available to them right now.
 pub fn help(user: &User, commands: &Vec<Command>) -> Vec<String> {
     let mut out = Vec::new();
@@ -180,9 +200,23 @@ fn make_pattern(pattern: &str) -> Regex {
 pub fn setup() -> Vec<Command> {
     vec![
         Command {
+            arg: "U".to_string(),
+            help: "Recently active users".to_string(),
+            pattern: make_pattern("u"),
+            available: available_always,
+            func: user_active,
+        },
+        Command {
+            arg: "S".to_string(),
+            help: "Recently seen users".to_string(),
+            pattern: make_pattern("s"),
+            available: available_always,
+            func: user_seen,
+        },
+         Command {
             arg: "B".to_string(),
             help: "Board list".to_string(),
-            pattern: make_pattern("^b$"),
+            pattern: make_pattern("b"),
             available: available_always,
             func: board_lister,
         },

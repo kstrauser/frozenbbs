@@ -81,6 +81,8 @@ pub async fn event_loop(
         my_id: my_id.into(),
     };
 
+    eprintln!("Listening for messages.");
+
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some((sender, out)) = handle_packet(conn, &commands, decoded, my_id) {
             for page in paginate(out, MAX_LENGTH) {
