@@ -7,6 +7,7 @@ pub mod server;
 pub mod server_mqtt;
 pub mod server_serial;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 pub fn hex_id_to_num(node_id: &str) -> u32 {
     u32::from_str_radix(
@@ -43,9 +44,12 @@ pub struct BBSConfig {
 impl ::std::default::Default for BBSConfig {
     fn default() -> Self {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("frozenbbs").unwrap();
-        dbg!(xdg_dirs);
+        let data_home = xdg_dirs.get_data_home();
+        let data_home = Path::new(&data_home);
+        let db_name = Path::new("frozen.db");
+
         Self {
-            db_path: "foo".into(),
+            db_path: data_home.join(db_name).to_str().unwrap().to_owned(),
             my_id: "cafeb33d".into(),
             mqtt_root: "msh".into(),
             mqtt_id: "frozenbbs".into(),
