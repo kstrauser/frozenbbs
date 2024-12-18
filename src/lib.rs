@@ -5,6 +5,7 @@ pub mod db;
 pub mod paginate;
 pub mod server;
 pub mod server_mqtt;
+pub mod server_serial;
 use serde::{Deserialize, Serialize};
 
 pub fn hex_id_to_num(node_id: &str) -> u32 {
@@ -36,6 +37,7 @@ pub struct BBSConfig {
     mqtt_password: String,
     meshtastic_python_path: String,
     meshtastic_python_host: String,
+    serial_device: String,
 }
 
 impl ::std::default::Default for BBSConfig {
@@ -53,6 +55,7 @@ impl ::std::default::Default for BBSConfig {
             mqtt_password: "large4cats".into(),
             meshtastic_python_path: "./meshtastic-python".into(),
             meshtastic_python_host: "localhost".into(),
+            serial_device: "/dev/ttyUSB0".into(),
         }
     }
 }
