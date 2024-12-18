@@ -144,3 +144,22 @@ pub fn enter_board(conn: &mut SqliteConnection, user: &User, board_id: i32) -> Q
         .set(dsl::in_board.eq(board_id))
         .get_result(conn)
 }
+
+pub fn recently_seen(conn: &mut SqliteConnection, count: i64) -> Vec<User> {
+    dsl::users
+        .select(User::as_select())
+        .order(dsl::last_seen_at_us.desc())
+        .limit(count)
+        .load(conn)
+        .expect("Error loading users")
+}
+
+pub fn recently_active(conn: &mut SqliteConnection, count: i64) -> Vec<User> {
+    dsl::users
+        .select(User::as_select())
+        .filter(dsl::last_acted_at_us.is_not_null())
+        .order(dsl::last_acted_at_us.desc())
+        .limit(count)
+        .load(conn)
+        .expect("Error loading users")
+}
