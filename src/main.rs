@@ -44,6 +44,12 @@ enum AdminCommands {
         #[command(subcommand)]
         board_command: Option<AdminBoardCommands>,
     },
+    /// Database commands
+    #[command(arg_required_else_help = true)]
+    Db {
+        #[command(subcommand)]
+        db_command: Option<AdminDbCommands>,
+    },
     /// Post commands
     #[command(arg_required_else_help = true)]
     Post {
@@ -99,6 +105,12 @@ enum AdminBoardCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum AdminDbCommands {
+    /// Show the path to the database file.
+    Path {},
+}
+
+#[derive(Debug, Subcommand)]
 enum AdminPostCommands {
     /// Read a board's posts.
     Read {
@@ -140,6 +152,7 @@ enum ClientCommands {
     },
 }
 
+#[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -170,6 +183,10 @@ async fn main() {
                 Some(AdminBoardCommands::Add { name, description }) => {
                     admin::board_add(conn, name, description)
                 }
+                None => {}
+            },
+            Some(AdminCommands::Db { db_command }) => match db_command {
+                Some(AdminDbCommands::Path {}) => admin::db_path(cfg),
                 None => {}
             },
             Some(AdminCommands::Post { post_command }) => match post_command {
