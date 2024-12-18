@@ -1,5 +1,5 @@
 bbscmd := "target/debug/frozenbbs"
-dbfile := `cut -d= -f2 .env 2>/dev/null || echo \"\"`
+dbfile := "cargo run -- admin db path"
 
 setup:
     #!/bin/bash
@@ -11,7 +11,7 @@ setup:
         echo Installed diesel.
     fi
 
-    if [ '{{ dbfile }}' != '""' ]; then
+    if [ '`{{ dbfile }}`' != '""' ]; then
         echo .env is already configured.
     else
         if [ {{ os() }} = macos ]; then
@@ -29,12 +29,12 @@ setup:
 
 # Connect to the database
 db_shell:
-    sqlite3 {{ dbfile }}
+    sqlite3 `{{ dbfile }}`
 
 # Delete the database
 [confirm]
 db_nuke:
-    rm -f {{ dbfile }}
+    rm -f `{{ dbfile }}`
 
 # Apply migrations
 db_migrate:
@@ -42,11 +42,11 @@ db_migrate:
 
 # Export the database to a text file
 db_dump:
-    sqlite3 {{ dbfile }} .dump > backup.sql
+    sqlite3 `{{ dbfile }}` .dump > backup.sql
 
 # Restore the database from backup
 db_restore: db_nuke
-    cat backup.sql | sqlite3 {{ dbfile }}
+    cat backup.sql | sqlite3 `{{ dbfile }}`
 
 db_init: db_migrate
     {{ bbscmd }} admin user observe --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
