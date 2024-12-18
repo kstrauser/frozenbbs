@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, client, db, server_serial as server, BBSConfig};
+use frozenbbs::{admin, client, db, server_serial, BBSConfig};
 use log::LevelFilter;
 
 // The command line layout
@@ -216,7 +216,7 @@ async fn main() {
             }
             None => {}
         },
-        Some(Subsystems::Server {}) => server::event_loop(conn, &cfg).await.unwrap(),
+        Some(Subsystems::Server {}) => server_serial::event_loop(conn, &cfg).await.unwrap(),
         None => {}
     }
 }
