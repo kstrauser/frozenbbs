@@ -18,6 +18,7 @@ pub fn dispatch(
         log::info!("Command from new {}: '{}'", user, cmdline);
         out.push("Welcome to Frozen BBS!\n".to_string());
         out.extend(help(&user, commands));
+        out.push("".to_string());
     }
     for command in commands.iter() {
         if !(command.available)(&user) {
