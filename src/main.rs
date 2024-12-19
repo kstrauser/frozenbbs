@@ -161,6 +161,7 @@ async fn main() {
     simple_logger::SimpleLogger::new()
         .with_module_level("meshtastic::connections", radio_level)
         .with_level(bbs_level)
+        .with_local_timestamps()
         .init()
         .unwrap();
     let conn = &mut db::establish_connection(&cfg);
