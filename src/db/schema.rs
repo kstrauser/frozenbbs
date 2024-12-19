@@ -48,9 +48,4 @@ diesel::joinable!(posts -> boards (board_id));
 diesel::joinable!(posts -> users (user_id));
 diesel::joinable!(users -> boards (in_board));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    board_states,
-    boards,
-    posts,
-    users,
-);
+diesel::allow_tables_to_appear_in_same_query!(board_states, boards, posts, users,);
