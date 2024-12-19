@@ -4,6 +4,7 @@ use regex::{Regex, RegexBuilder};
 
 const NO_BOARDS: &str = "There are no boards.";
 const NO_MORE_POSTS: &str = "There are no more posts in this board.";
+const NO_MORE_UNREAD: &str = "There are no more unread posts in any board.";
 const NO_SUCH_POST: &str = "There is no post here.";
 const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "Not a valid number!";
@@ -101,6 +102,24 @@ fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) ->
     } else {
         vec![NO_MORE_POSTS.to_string()]
     }
+}
+
+///Get the next unread message in any board.
+fn board_quick(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
+    let in_board = user.in_board.unwrap_or(1);
+    let mut boards: Vec<i32> = Vec::new();
+    boards.extend(in_board..=boards::count(conn));
+    boards.extend(1..in_board);
+
+    for board in boards {
+        let last_seen = board_states::get(conn, user.id, board);
+        if let Ok((post, post_user)) = posts::after(conn, board, last_seen) {
+            board_states::update(conn, user.id, board, post.created_at_us);
+            return post_print(&post, &post_user);
+        }
+    }
+
+    vec![NO_MORE_UNREAD.to_string()]
 }
 
 /// Add a new post to the board.
@@ -213,7 +232,7 @@ pub fn setup() -> Vec<Command> {
             available: available_always,
             func: user_seen,
         },
-         Command {
+        Command {
             arg: "B".to_string(),
             help: "Board list".to_string(),
             pattern: make_pattern("b"),
@@ -226,6 +245,13 @@ pub fn setup() -> Vec<Command> {
             pattern: make_pattern(r"b(\d+)"),
             available: available_always,
             func: board_enter,
+        },
+        Command {
+            arg: "Q".to_string(),
+            help: "Read the next unread message in any board".to_string(),
+            pattern: make_pattern("q"),
+            available: available_always,
+            func: board_quick,
         },
         Command {
             arg: "P".to_string(),
