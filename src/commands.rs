@@ -1,4 +1,5 @@
 use crate::db::{board_states, boards, posts, users, Post, User};
+use crate::BBSConfig;
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 
@@ -171,7 +172,7 @@ pub fn user_seen(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>
 }
 
 /// Show the user all commands available to them right now.
-pub fn help(user: &User, commands: &Vec<Command>) -> Vec<String> {
+pub fn help(cfg: &BBSConfig, user: &User, commands: &Vec<Command>) -> Vec<String> {
     let mut out = Vec::new();
     out.push("Commands:\n".to_string());
     // Get the width of the widest argument of any available command.
@@ -180,7 +181,16 @@ pub fn help(user: &User, commands: &Vec<Command>) -> Vec<String> {
             out.push(format!("{} : {}", command.arg, command.help));
         }
     }
-    out.push("H : This help".to_string());
+    out.push("H : This help\n".to_string());
+    out.push(format!(
+        "{} is running {}.",
+        cfg.bbs_name,
+        build_info::format!("{} v{}/{} built at {}.",
+            $.crate_info.name,
+            $.crate_info.version,
+            $.version_control.unwrap().git().unwrap().commit_short_id,
+            $.timestamp)
+    ));
     out
 }
 
