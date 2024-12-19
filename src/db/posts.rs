@@ -80,3 +80,11 @@ pub fn before(
         .limit(1)
         .first::<(Post, User)>(conn)
 }
+
+/// Get the number of posts
+pub fn count(conn: &mut SqliteConnection) -> i32 {
+    posts_dsl::posts
+        .count()
+        .get_result::<i64>(conn)
+        .expect("Error saving new post") as i32
+}

@@ -1,6 +1,11 @@
 use crate::hex_id_to_num;
 use crate::paginate::{paginate, MAX_LENGTH};
-use crate::{client::dispatch, commands, db::users, num_id_to_hex, BBSConfig};
+use crate::{
+    client::dispatch,
+    commands,
+    db::{stats, users},
+    num_id_to_hex, BBSConfig,
+};
 use diesel::SqliteConnection;
 use meshtastic;
 use meshtastic::api::StreamApi;
@@ -81,7 +86,15 @@ pub async fn event_loop(
         my_id: my_id.into(),
     };
 
-    eprintln!("Listening for messages.");
+    eprintln!(
+        "\
+Startup stats:
+
+{}
+
+Listening for messages.",
+        stats(conn)
+    );
 
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some((sender, out)) = handle_packet(conn, &commands, decoded, my_id) {

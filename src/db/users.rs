@@ -163,3 +163,18 @@ pub fn recently_active(conn: &mut SqliteConnection, count: i64) -> Vec<User> {
         .load(conn)
         .expect("Error loading users")
 }
+
+/// Get the number of seen and active users.
+pub fn counts(conn: &mut SqliteConnection) -> (i32, i32) {
+    let seen_users = dsl::users
+        .count()
+        .get_result::<i64>(conn)
+        .expect("Error saving new post") as i32;
+    let active_users = dsl::users
+        .filter(dsl::last_acted_at_us.is_not_null())
+        .count()
+        .get_result::<i64>(conn)
+        .expect("Error saving new post") as i32;
+
+    (seen_users, active_users)
+}
