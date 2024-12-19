@@ -162,7 +162,7 @@ There are several commands and subcommands, each with a handful of arguments. I 
 
 # Design notes
 
-The `frozenbbs` doesn't cache any state in RAM. When the event loop processes a command, it calls the related command function with information about the user running it and any arguments they sent. That command function is responsible for gathering any additional information needed to fulfill the request. For example, the command to read the next post in the user's current message board reads the necessary information from the database. This has a few nice effects:
+The `frozenbbs` program doesn't cache any state in RAM. When the event loop processes a command, it calls the related command function with information about the user running it and any arguments they sent. That command function is responsible for gathering any additional information needed to fulfill the request. For example, the command to read the next post in the user's current message board reads the necessary information from the database. This has a few nice effects:
 
 1. It greatly simplifies program code because we don't have to pass massive balls of state around.
 2. There's no cache to get out of date.
