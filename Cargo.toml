@@ -1,9 +1,10 @@
 [package]
 name = "frozenbbs"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+build-info = "0.0.39"
 chrono = "0.4.38"
 clap = { version = "4.5.21", features = ["derive"] }
 confy = "0.6.1"
@@ -19,3 +20,6 @@ simple_logger = "5.0.0"
 tokio = "1.41.1"
 validator = { version = "0.19", features = ["derive"] }
 xdg = "2.5.2"
+
+[build-dependencies]
+build-info-build = { version = "=0.0.39" }

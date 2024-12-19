@@ -19,7 +19,7 @@ pub fn dispatch(
     } else {
         log::info!("Command from new {}: '{}'", user, cmdline);
         out.push(format!("Welcome to {}!\n", cfg.bbs_name));
-        out.extend(help(&user, commands));
+        out.extend(help(cfg, &user, commands));
         out.push("".to_string());
     }
     for command in commands.iter() {
@@ -47,7 +47,7 @@ pub fn dispatch(
             out.push("That's not an available command here.\n".to_string());
         }
     }
-    out.extend(help(&user, commands));
+    out.extend(help(cfg, &user, commands));
     out
 }
 

@@ -7,6 +7,8 @@ pub mod server_serial;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+build_info::build_info!(fn build_info);
+
 pub const BBS_TAG: &str = "frozenbbs";
 
 pub fn hex_id_to_num(node_id: &str) -> u32 {
