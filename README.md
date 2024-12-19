@@ -12,9 +12,7 @@ It has a [Justfile](https://just.systems) to execute some common tasks like runn
 
 Clone this repo. Run `cargo build`. Ta-da: now it's built.
 
-I'm too embarrassed to document the absurdity of shelling out to a Python app to send messages back to remote clients. That'll be fixed soon.
-
-## Getting started
+# Getting started
 
 Install `diesel_cli` and create a `.env` file telling Frozen BBS where to put its database file. You can do these with:
 
@@ -36,7 +34,7 @@ You can make some demo objects:
 $ just db_init
 ```
 
-## Configuring
+# Configuring
 
 `frozenbbs` will create a sample config file and display its name on its first run. Edit this file with your own values:
 
@@ -48,7 +46,7 @@ serial_device = "/dev/ttyUSB0"
 
 The default `db_path` and `serial_device` values are likely to be usable as-is, although I had to use `/dev/ttyACM0` on my Raspberry Pi. `my_id` should be the hex name of the Meshtastic node you'll be running the BBS on. It will only process messages which are addressed to that ID.
 
-## Running the program
+# Running the program
 
 The BBS program is called `frozenbbs` with several sub-commands. For example:
 
@@ -93,7 +91,7 @@ Created board #4, 'GitHub Stuff'
 **Reading posts**
 
 ```shell
-$ target/debug/frozenbbs post read -b1
+$ frozenbbs post read -b1
 # Posts in 'Board Talk'
 
 | Created at          | Node ID   | Body |
@@ -111,7 +109,7 @@ Created post #2
 ## Running a local session
 
 ```shell
-$ target/debug/frozenbbs client terminal -n !abcd1234
+$ frozenbbs client terminal -n !abcd1234
 Connected. ^D to quit.
 
 Command: ?
@@ -158,7 +156,11 @@ Observed node at 1732851007: !f5f5a1c1/HPT1:Depeche Node
 [...]
 ```
 
-## Design notes
+## Other
+
+There are several commands and subcommands, each with a handful of arguments. I tried to make the UI reasonably discoverable. If you run `frozenbbs`, it'll show you the available commands. `frozenbbs foo` will show the subcommands under `foo`. `frozenbbs foo bar` will show any required arguments for `bar`. Use `-h` and `--help` to explore!
+
+# Design notes
 
 The `frozenbbs` doesn't cache any state in RAM. When the event loop processes a command, it calls the related command function with information about the user running it and any arguments they sent. That command function is responsible for gathering any additional information needed to fulfill the request. For example, the command to read the next post in the user's current message board reads the necessary information from the database. This has a few nice effects:
 
@@ -169,7 +171,7 @@ The `frozenbbs` doesn't cache any state in RAM. When the event loop processes a 
 
 The downside is that we're fetching more database information than strictly necessary instead of remembering values. Honestly, SQLite is so astonishingly fast and the radio broadcasts so inherently slow that the tradeoff is well worth it. For example, running `frozenbbs -vv client command --node-id !abcd1234 n` takes about 2.5ms in a loop. You will not be processing more than 400 requests per second over Meshtastic, guaranteed.
 
-## Hardware setup
+# Hardware setup
 
 I have a RAK4631 radio with a RAK13800 Ethernet module, with the BBS code running on a Raspberry Pi 4 next to it. I went through a lot of false starts making this work.
 
@@ -181,11 +183,11 @@ Third try: OK, fine. We'll make serial work. More people have serial connections
 
 Today: Using the serial port, but with a powered USB hub between the Raspberry Pi and the RAK4631 so that the hub is providing the necessary wattage. Finally, after all this time, I can fully operate all the features of the radio as documented _and_ running Frozen BBS without the whole thing locking up ever half an hour. Success! I have this setup running live today.
 
-## Releases
+# Releases
 
-v1.0, 2024-12-18: First official release.
+v1.0.0, 2024-12-18: First official release.
 
-## License
+# License
 
 Copyright (C) 2024 Kirk Strauser
 
