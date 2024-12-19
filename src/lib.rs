@@ -27,8 +27,9 @@ fn num_id_to_hex(node_num: u32) -> String {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BBSConfig {
-    db_path: String,
+    bbs_name: String,
     pub my_id: String,
+    db_path: String,
     serial_device: String,
 }
 
@@ -55,8 +56,9 @@ Edit it before doing anything else!
         let db_path = Path::new(&db_file);
 
         Self {
-            db_path: data_home.join(db_path).to_str().unwrap().to_owned(),
+            bbs_name: "Frozen BBS❅".to_string(),
             my_id: "cafeb33d".into(),
+            db_path: data_home.join(db_path).to_str().unwrap().to_owned(),
             serial_device: "/dev/ttyUSB0".into(),
         }
     }

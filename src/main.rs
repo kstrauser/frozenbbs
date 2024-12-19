@@ -168,10 +168,10 @@ async fn main() {
     match &cli.command {
         Some(Subsystems::Client { client_command }) => match client_command {
             Some(ClientCommands::Terminal { node_id }) => {
-                client::terminal(conn, node_id.as_ref().unwrap_or(&cfg.my_id))
+                client::terminal(conn, &cfg, node_id.as_ref().unwrap_or(&cfg.my_id))
             }
             Some(ClientCommands::Command { node_id, command }) => {
-                client::command(conn, node_id.as_ref().unwrap_or(&cfg.my_id), command)
+                client::command(conn, &cfg, node_id.as_ref().unwrap_or(&cfg.my_id), command)
             }
             None => {}
         },

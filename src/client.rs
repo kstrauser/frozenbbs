@@ -1,11 +1,13 @@
 use crate::commands::{help, setup, Command};
 use crate::db::users;
+use crate::BBSConfig;
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
 /// Handle a single command from a client and return its output.
 pub fn dispatch(
     conn: &mut SqliteConnection,
+    cfg: &BBSConfig,
     node_id: &str,
     commands: &Vec<Command>,
     cmdline: &str,
@@ -16,7 +18,7 @@ pub fn dispatch(
         log::info!("Command from {}: '{}'", user, cmdline);
     } else {
         log::info!("Command from new {}: '{}'", user, cmdline);
-        out.push("Welcome to Frozen BBS!\n".to_string());
+        out.push(format!("Welcome to {}!\n", cfg.bbs_name));
         out.extend(help(&user, commands));
         out.push("".to_string());
     }
@@ -50,7 +52,7 @@ pub fn dispatch(
 }
 
 /// Run a session from the local terminal.
-pub fn terminal(conn: &mut SqliteConnection, node_id: &str) {
+pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
     let mut stdout = io::stdout();
     let mut command = String::new();
     let stdin = io::stdin();
@@ -71,12 +73,15 @@ pub fn terminal(conn: &mut SqliteConnection, node_id: &str) {
         }
         print!(
             "{}",
-            dispatch(conn, node_id, &commands, command.trim()).join("\n")
+            dispatch(conn, cfg, node_id, &commands, command.trim()).join("\n")
         );
     }
 }
 
 /// Run a single command.
-pub fn command(conn: &mut SqliteConnection, node_id: &str, command: &str) {
-    println!("{}", dispatch(conn, node_id, &setup(), command).join("\n"));
+pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, command: &str) {
+    println!(
+        "{}",
+        dispatch(conn, cfg, node_id, &setup(), command).join("\n")
+    );
 }
