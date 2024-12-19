@@ -13,24 +13,24 @@ setup:
 
 # Connect to the database
 db_shell:
-    sqlite3 `{{ dbfile }}`
+    sqlite3 "`{{ dbfile }}`"
 
 # Delete the database
 [confirm]
 db_nuke:
-    rm -f `{{ dbfile }}`
+    rm -f "`{{ dbfile }}`"
 
 # Apply migrations
 db_migrate:
-    diesel migration run
+    diesel --database-url "`{{ dbfile }}`" migration run
 
 # Export the database to a text file
 db_dump:
-    sqlite3 `{{ dbfile }}` .dump > backup.sql
+    sqlite3 "`{{ dbfile }}`" .dump > backup.sql
 
 # Restore the database from backup
 db_restore: db_nuke
-    cat backup.sql | sqlite3 `{{ dbfile }}`
+    cat backup.sql | sqlite3 "`{{ dbfile }}`"
 
 db_init: db_migrate
     {{ bbscmd }} user observe --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
