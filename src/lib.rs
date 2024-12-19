@@ -7,6 +7,8 @@ pub mod server_serial;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+pub const BBS_TAG: &str = "frozenbbs";
+
 pub fn hex_id_to_num(node_id: &str) -> u32 {
     u32::from_str_radix(
         if node_id.starts_with("!") {
@@ -32,13 +34,28 @@ pub struct BBSConfig {
 
 impl ::std::default::Default for BBSConfig {
     fn default() -> Self {
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("frozenbbs").unwrap();
+        eprintln!(
+            "\
+NOTICE!
+
+Creating a new config file at \"{}\".
+
+Edit it before doing anything else!
+
+===================================
+",
+            confy::get_configuration_file_path(BBS_TAG, "config")
+                .unwrap()
+                .display()
+        );
+        let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
         let data_home = xdg_dirs.get_data_home();
         let data_home = Path::new(&data_home);
-        let db_name = Path::new("frozen.db");
+        let db_file = format!("{}.db", BBS_TAG);
+        let db_path = Path::new(&db_file);
 
         Self {
-            db_path: data_home.join(db_name).to_str().unwrap().to_owned(),
+            db_path: data_home.join(db_path).to_str().unwrap().to_owned(),
             my_id: "cafeb33d".into(),
             serial_device: "/dev/ttyUSB0".into(),
         }
