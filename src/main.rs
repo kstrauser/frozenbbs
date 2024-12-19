@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, client, db, server_serial, BBSConfig};
+use frozenbbs::{admin, client, db, server_serial, BBSConfig, BBS_TAG};
 use log::LevelFilter;
 
 // The command line layout
@@ -143,9 +143,11 @@ enum UserCommands {
     },
 }
 
+/// The main command line handler.
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
+    let cfg: BBSConfig = confy::load(BBS_TAG, "config").unwrap();
     let cli = Cli::parse();
     // Crank up the BBS and Meshtastic logging as verbosity increases.
     let (bbs_level, radio_level) = match cli.verbose {
@@ -161,7 +163,6 @@ async fn main() {
         .with_level(bbs_level)
         .init()
         .unwrap();
-    let cfg: BBSConfig = confy::load("frozenbbs", None).unwrap();
     let conn = &mut db::establish_connection(&cfg);
 
     match &cli.command {

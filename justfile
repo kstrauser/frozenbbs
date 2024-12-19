@@ -1,5 +1,5 @@
 bbscmd := "target/debug/frozenbbs"
-dbfile := "cargo run -- admin db path"
+dbfile := "cargo run -- db path"
 
 setup:
     #!/bin/bash
@@ -9,22 +9,6 @@ setup:
     else
         cargo install diesel_cli --no-default-features --features sqlite
         echo Installed diesel.
-    fi
-
-    if [ '`{{ dbfile }}`' != '""' ]; then
-        echo .env is already configured.
-    else
-        if [ {{ os() }} = macos ]; then
-            newdbdir="{{ home_dir() }}/Library/Application Support/frozenbbs"
-        elif [ {{ os() }} = linux ]; then
-            newdbdir="{{ home_dir() }}/.local/share/frozenbbs"
-        else
-            echo Implement me.
-            exit 1
-        fi
-        mkdir -p "$newdbdir"
-        echo 'DATABASE_URL="'$newdbdir/frozen.db'"' > .env
-        echo Configured .env.
     fi
 
 # Connect to the database
@@ -49,13 +33,13 @@ db_restore: db_nuke
     cat backup.sql | sqlite3 `{{ dbfile }}`
 
 db_init: db_migrate
-    {{ bbscmd }} admin user observe --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
-    {{ bbscmd }} admin user observe -n !1234fedc -s 1234 -l 'Jerk'
-    {{ bbscmd }} admin user ban -n !1234fedc
-    {{ bbscmd }} admin user observe -n !1234abcd -s 4567 -l 'OK person'
-    {{ bbscmd }} admin board add --name "Board Talk" --description "Discussing this BBS itself."
-    {{ bbscmd }} admin board add --name "Meshtastic" --description "How did we get here?"
-    {{ bbscmd }} admin board add --name "Local" --description "Things happening nearby."
-    {{ bbscmd }} admin post add --board-id 1 --node-id !cafebead --content "First post."
-    {{ bbscmd }} admin post add --board-id 1 --node-id !1234fedc --content "LOL I'm a jerk look at me!"
-    {{ bbscmd }} admin post add --board-id 1 --node-id !1234abcd --content "Third post."
+    {{ bbscmd }} user observe --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
+    {{ bbscmd }} user observe -n !1234fedc -s 1234 -l 'Jerk'
+    {{ bbscmd }} user ban -n !1234fedc
+    {{ bbscmd }} user observe -n !1234abcd -s 4567 -l 'OK person'
+    {{ bbscmd }} board add --name "Board Talk" --description "Discussing this BBS itself."
+    {{ bbscmd }} board add --name "Meshtastic" --description "How did we get here?"
+    {{ bbscmd }} board add --name "Local" --description "Things happening nearby."
+    {{ bbscmd }} post add --board-id 1 --node-id !cafebead --content "First post."
+    {{ bbscmd }} post add --board-id 1 --node-id !1234fedc --content "LOL I'm a jerk look at me!"
+    {{ bbscmd }} post add --board-id 1 --node-id !1234abcd --content "Third post."
