@@ -23,44 +23,98 @@ enum Subsystems {
     },
     /// Server commands
     Server {},
-    /// Admin commands
-    #[command(arg_required_else_help = true)]
-    Admin {
-        #[command(subcommand)]
-        admin_command: Option<AdminCommands>,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum AdminCommands {
-    /// User commands
-    #[command(arg_required_else_help = true)]
-    User {
-        #[command(subcommand)]
-        user_command: Option<AdminUserCommands>,
-    },
     /// Board commands
     #[command(arg_required_else_help = true)]
     Board {
         #[command(subcommand)]
-        board_command: Option<AdminBoardCommands>,
+        board_command: Option<BoardCommands>,
     },
     /// Database commands
     #[command(arg_required_else_help = true)]
     Db {
         #[command(subcommand)]
-        db_command: Option<AdminDbCommands>,
+        db_command: Option<DbCommands>,
     },
     /// Post commands
     #[command(arg_required_else_help = true)]
     Post {
         #[command(subcommand)]
-        post_command: Option<AdminPostCommands>,
+        post_command: Option<PostCommands>,
+    },
+    /// User commands
+    #[command(arg_required_else_help = true)]
+    User {
+        #[command(subcommand)]
+        user_command: Option<UserCommands>,
     },
 }
 
 #[derive(Debug, Subcommand)]
-enum AdminUserCommands {
+enum ClientCommands {
+    /// Open a local terminal session.
+    Terminal {
+        /// User's node ID in !hex format.
+        #[arg(short, long)]
+        node_id: String,
+    },
+    /// Run a single command.
+    Command {
+        /// User's node ID in !hex format.
+        #[arg(short, long)]
+        node_id: String,
+        /// The command to run.
+        #[arg()]
+        command: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum BoardCommands {
+    /// List all boards.
+    List {},
+
+    /// Add a new board.
+    Add {
+        /// Name of the board to add.
+        #[arg(short, long)]
+        name: String,
+        /// Description of the new board.
+        #[arg(short, long)]
+        description: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum DbCommands {
+    /// Show the path to the database file.
+    Path {},
+}
+
+#[derive(Debug, Subcommand)]
+enum PostCommands {
+    /// Read a board's posts.
+    Read {
+        /// Number of the board to read.
+        #[arg(short, long)]
+        board_id: i32,
+    },
+
+    /// Add a new post.
+    Add {
+        /// Number of the board to post to.
+        #[arg(short, long)]
+        board_id: i32,
+        /// User's node ID in !hex format.
+        #[arg(short, long)]
+        node_id: String,
+        /// Body of the new post.
+        #[arg(short, long)]
+        content: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum UserCommands {
     /// List all users.
     List {},
     /// Add a new user as though we see their node info.
@@ -89,70 +143,6 @@ enum AdminUserCommands {
     },
 }
 
-#[derive(Debug, Subcommand)]
-enum AdminBoardCommands {
-    /// List all boards.
-    List {},
-
-    /// Add a new board.
-    Add {
-        /// Name of the board to add.
-        #[arg(short, long)]
-        name: String,
-        /// Description of the new board.
-        #[arg(short, long)]
-        description: String,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum AdminDbCommands {
-    /// Show the path to the database file.
-    Path {},
-}
-
-#[derive(Debug, Subcommand)]
-enum AdminPostCommands {
-    /// Read a board's posts.
-    Read {
-        /// Number of the board to read.
-        #[arg(short, long)]
-        board_id: i32,
-    },
-
-    /// Add a new post.
-    Add {
-        /// Number of the board to post to.
-        #[arg(short, long)]
-        board_id: i32,
-        /// User's node ID in !hex format.
-        #[arg(short, long)]
-        node_id: String,
-        /// Body of the new post.
-        #[arg(short, long)]
-        content: String,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum ClientCommands {
-    /// Open a local terminal session.
-    Terminal {
-        /// User's node ID in !hex format.
-        #[arg(short, long)]
-        node_id: String,
-    },
-    /// Run a single command.
-    Command {
-        /// User's node ID in !hex format.
-        #[arg(short, long)]
-        node_id: String,
-        /// The command to run.
-        #[arg()]
-        command: String,
-    },
-}
-
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
@@ -175,40 +165,6 @@ async fn main() {
     let conn = &mut db::establish_connection(&cfg);
 
     match &cli.command {
-        Some(Subsystems::Admin { admin_command }) => match admin_command {
-            Some(AdminCommands::User { user_command }) => match user_command {
-                Some(AdminUserCommands::List {}) => admin::user_list(conn),
-                Some(AdminUserCommands::Observe {
-                    node_id,
-                    short_name,
-                    long_name,
-                }) => admin::user_observe(conn, node_id, short_name, long_name),
-                Some(AdminUserCommands::Ban { node_id }) => admin::user_ban(conn, node_id),
-                Some(AdminUserCommands::Unban { node_id }) => admin::user_unban(conn, node_id),
-                None => {}
-            },
-            Some(AdminCommands::Board { board_command }) => match board_command {
-                Some(AdminBoardCommands::List {}) => admin::board_list(conn),
-                Some(AdminBoardCommands::Add { name, description }) => {
-                    admin::board_add(conn, name, description)
-                }
-                None => {}
-            },
-            Some(AdminCommands::Db { db_command }) => match db_command {
-                Some(AdminDbCommands::Path {}) => admin::db_path(cfg),
-                None => {}
-            },
-            Some(AdminCommands::Post { post_command }) => match post_command {
-                Some(AdminPostCommands::Read { board_id }) => admin::post_read(conn, *board_id),
-                Some(AdminPostCommands::Add {
-                    board_id,
-                    node_id,
-                    content,
-                }) => admin::post_add(conn, *board_id, node_id, content),
-                None => {}
-            },
-            None => {}
-        },
         Some(Subsystems::Client { client_command }) => match client_command {
             Some(ClientCommands::Terminal { node_id }) => client::terminal(conn, node_id),
             Some(ClientCommands::Command { node_id, command }) => {
@@ -217,6 +173,37 @@ async fn main() {
             None => {}
         },
         Some(Subsystems::Server {}) => server_serial::event_loop(conn, &cfg).await.unwrap(),
+        Some(Subsystems::Board { board_command }) => match board_command {
+            Some(BoardCommands::List {}) => admin::board_list(conn),
+            Some(BoardCommands::Add { name, description }) => {
+                admin::board_add(conn, name, description)
+            }
+            None => {}
+        },
+        Some(Subsystems::Db { db_command }) => match db_command {
+            Some(DbCommands::Path {}) => admin::db_path(cfg),
+            None => {}
+        },
+        Some(Subsystems::Post { post_command }) => match post_command {
+            Some(PostCommands::Read { board_id }) => admin::post_read(conn, *board_id),
+            Some(PostCommands::Add {
+                board_id,
+                node_id,
+                content,
+            }) => admin::post_add(conn, *board_id, node_id, content),
+            None => {}
+        },
+        Some(Subsystems::User { user_command }) => match user_command {
+            Some(UserCommands::List {}) => admin::user_list(conn),
+            Some(UserCommands::Observe {
+                node_id,
+                short_name,
+                long_name,
+            }) => admin::user_observe(conn, node_id, short_name, long_name),
+            Some(UserCommands::Ban { node_id }) => admin::user_ban(conn, node_id),
+            Some(UserCommands::Unban { node_id }) => admin::user_unban(conn, node_id),
+            None => {}
+        },
         None => {}
     }
 }
