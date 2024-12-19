@@ -106,7 +106,7 @@ $ frozenbbs post add -b 1 -n !1234abcd -c 'Hello, GitHub readers!'
 Created post #2
 ```
 
-## Running a local session
+**Running a local session**
 
 ```shell
 $ frozenbbs client terminal -n !abcd1234
@@ -146,7 +146,7 @@ Command: ^D
 Disconnected.
 ```
 
-## Running a server
+**Running a server**
 
 As of this writing, config is hardcoded in the source. Sorry about that. It'll change soon.
 
@@ -156,7 +156,7 @@ Observed node at 1732851007: !f5f5a1c1/HPT1:Depeche Node
 [...]
 ```
 
-## Other
+**Other commands**
 
 There are several commands and subcommands, each with a handful of arguments. I tried to make the UI reasonably discoverable. If you run `frozenbbs`, it'll show you the available commands. `frozenbbs foo` will show the subcommands under `foo`. `frozenbbs foo bar` will show any required arguments for `bar`. Use `-h` and `--help` to explore!
 
