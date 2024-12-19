@@ -1,6 +1,7 @@
 bbscmd := "target/debug/frozenbbs"
 dbfile := "cargo run -- db path"
 
+# Install dev requirements
 setup:
     #!/bin/bash
 
@@ -10,6 +11,18 @@ setup:
         cargo install diesel_cli --no-default-features --features sqlite
         echo Installed diesel.
     fi
+
+# Build the debug version
+build:
+    cargo build
+
+# Build the release version
+build_release:
+    cargo build --release
+
+# Install the release version
+install: build_release
+    cargo install --path .
 
 # Connect to the database
 db_shell:
@@ -32,7 +45,8 @@ db_dump:
 db_restore: db_nuke
     cat backup.sql | sqlite3 "`{{ dbfile }}`"
 
-db_init: db_migrate
+# Create some test data
+db_fixture: db_migrate
     {{ bbscmd }} user observe --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
     {{ bbscmd }} user observe -n !1234fedc -s 1234 -l 'Jerk'
     {{ bbscmd }} user ban -n !1234fedc
