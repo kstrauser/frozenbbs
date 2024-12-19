@@ -55,13 +55,13 @@ enum ClientCommands {
     Terminal {
         /// User's node ID in !hex format.
         #[arg(short, long)]
-        node_id: String,
+        node_id: Option<String>,
     },
     /// Run a single command.
     Command {
         /// User's node ID in !hex format.
         #[arg(short, long)]
-        node_id: String,
+        node_id: Option<String>,
         /// The command to run.
         #[arg()]
         command: String,
@@ -106,7 +106,7 @@ enum PostCommands {
         board_id: i32,
         /// User's node ID in !hex format.
         #[arg(short, long)]
-        node_id: String,
+        node_id: Option<String>,
         /// Body of the new post.
         #[arg(short, long)]
         content: String,
@@ -167,9 +167,11 @@ async fn main() {
 
     match &cli.command {
         Some(Subsystems::Client { client_command }) => match client_command {
-            Some(ClientCommands::Terminal { node_id }) => client::terminal(conn, node_id),
+            Some(ClientCommands::Terminal { node_id }) => {
+                client::terminal(conn, node_id.as_ref().unwrap_or(&cfg.my_id))
+            }
             Some(ClientCommands::Command { node_id, command }) => {
-                client::command(conn, node_id, command)
+                client::command(conn, node_id.as_ref().unwrap_or(&cfg.my_id), command)
             }
             None => {}
         },
@@ -191,7 +193,12 @@ async fn main() {
                 board_id,
                 node_id,
                 content,
-            }) => admin::post_add(conn, *board_id, node_id, content),
+            }) => admin::post_add(
+                conn,
+                *board_id,
+                node_id.as_ref().unwrap_or(&cfg.my_id),
+                content,
+            ),
             None => {}
         },
         Some(Subsystems::User { user_command }) => match user_command {

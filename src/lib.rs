@@ -28,7 +28,7 @@ fn num_id_to_hex(node_num: u32) -> String {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BBSConfig {
     db_path: String,
-    my_id: String,
+    pub my_id: String,
     serial_device: String,
 }
 
