@@ -38,3 +38,18 @@ fn formatted_useconds(dstamp: i64) -> String {
             .format("%Y-%m-%dT%H:%M:%S")
     )
 }
+
+pub fn stats(conn: &mut SqliteConnection) -> String {
+    let (seen, active) = users::counts(conn);
+    format!(
+        "\
+Seen users  : {}
+Active users: {}
+Boards      : {}
+Posts       : {}",
+        seen,
+        active,
+        boards::count(conn),
+        posts::count(conn)
+    )
+}
