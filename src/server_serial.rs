@@ -97,7 +97,7 @@ Listening for messages.",
     );
 
     while let Some(decoded) = decoded_listener.recv().await {
-        if let Some((sender, out)) = handle_packet(conn, &commands, decoded, my_id) {
+        if let Some((sender, out)) = handle_packet(conn, cfg, &commands, decoded, my_id) {
             for page in paginate(out, MAX_LENGTH) {
                 use meshtastic::types::NodeId;
                 stream_api
@@ -118,6 +118,7 @@ Listening for messages.",
 
 fn handle_packet(
     conn: &mut SqliteConnection,
+    cfg: &BBSConfig,
     commands: &Vec<commands::Command>,
     radio_packet: FromRadio,
     my_id: u32,
@@ -143,7 +144,7 @@ fn handle_packet(
         let message = std::str::from_utf8(&decoded.payload);
         let command = message.unwrap();
         log::debug!("Received command from {}: <{}>", node_id, command);
-        let out = dispatch(conn, &node_id, commands, command.trim());
+        let out = dispatch(conn, cfg, &node_id, commands, command.trim());
         log::debug!("Result: {:?}", &out);
         return Some((meshpacket.from, out));
     }
