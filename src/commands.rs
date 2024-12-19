@@ -185,7 +185,7 @@ pub fn help(cfg: &BBSConfig, user: &User, commands: &Vec<Command>) -> Vec<String
     out.push(format!(
         "{} is running {}.",
         cfg.bbs_name,
-        build_info::format!("{} v{}/{} built at {}.",
+        build_info::format!("{} v{}/{} built at {}",
             $.crate_info.name,
             $.crate_info.version,
             $.version_control.unwrap().git().unwrap().commit_short_id,
