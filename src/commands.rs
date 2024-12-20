@@ -10,16 +10,63 @@ const NO_SUCH_POST: &str = "There is no post here.";
 const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "Not a valid number!";
 
+/// To where shall I respond?
+pub enum Destination {
+    Sender,
+    Broadcast,
+}
+
+/// Where and what to send back to the radio.
+pub struct Response {
+    pub out: Vec<String>,
+    pub destination: Destination,
+}
+
+/// The command returns a whole Vec of Strings.
+impl From<Vec<String>> for Response {
+    fn from(out: Vec<String>) -> Self {
+        Response {
+            out,
+            destination: Destination::Sender,
+        }
+    }
+}
+
+/// The command returns a single &str.
+impl From<&str> for Response {
+    fn from(out: &str) -> Self {
+        Response {
+            out: vec![out.to_string()],
+            destination: Destination::Sender,
+        }
+    }
+}
+
+/// The command returns a single String.
+impl From<String> for Response {
+    fn from(out: String) -> Self {
+        Response {
+            out: vec![out],
+            destination: Destination::Sender,
+        }
+    }
+}
+
+// The commands
+
 /// List all the boards.
 fn board_lister(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
-        return vec![NO_BOARDS.to_string()];
+        return Response {
+            out: vec![NO_BOARDS.to_string()],
+            destination: Destination::Sender,
+        };
     }
     let mut out = Vec::new();
     out.push("Boards:\n".to_string());
@@ -29,7 +76,7 @@ fn board_lister(
             board.id, board.name, board.description
         ));
     }
-    out
+    out.into()
 }
 
 /// Enter a board.
@@ -38,22 +85,22 @@ fn board_enter(
     _cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
-            return vec![NOT_VALID.to_string()];
+            return NOT_VALID.into();
         }
     };
     let count = boards::count(conn);
     if count == 0 {
-        return vec![NO_BOARDS.to_string()];
+        return NO_BOARDS.into();
     }
     if num < 1 || num > count {
-        return vec![format!("Board number must be between 1 and {}", count)];
+        return format!("Board number must be between 1 and {}", count).into();
     }
     let _ = users::enter_board(conn, user, num);
-    vec![format!("Entering board {}", num)]
+    format!("Entering board {}", num).into()
 }
 
 /// Print a post and information about its author.
@@ -71,18 +118,18 @@ fn board_current(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return vec![NOT_IN_BOARD.to_string()];
+            return NOT_IN_BOARD.into();
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::current(conn, in_board, last_seen) {
-        post_print(&post, &post_user)
+        post_print(&post, &post_user).into()
     } else {
-        vec![NO_SUCH_POST.to_string()]
+        NO_SUCH_POST.into()
     }
 }
 
@@ -92,19 +139,19 @@ fn board_previous(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return vec![NOT_IN_BOARD.to_string()];
+            return NOT_IN_BOARD.into();
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::before(conn, in_board, last_seen) {
         board_states::update(conn, user.id, in_board, post.created_at_us);
-        post_print(&post, &post_user)
+        post_print(&post, &post_user).into()
     } else {
-        vec![NO_MORE_POSTS.to_string()]
+        NO_MORE_POSTS.into()
     }
 }
 
@@ -114,19 +161,19 @@ fn board_next(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return vec![NOT_IN_BOARD.to_string()];
+            return NOT_IN_BOARD.into();
         }
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::after(conn, in_board, last_seen) {
         board_states::update(conn, user.id, in_board, post.created_at_us);
-        post_print(&post, &post_user)
+        post_print(&post, &post_user).into()
     } else {
-        vec![NO_MORE_POSTS.to_string()]
+        NO_MORE_POSTS.into()
     }
 }
 
@@ -136,7 +183,7 @@ fn board_quick(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let in_board = user.in_board.unwrap_or(1);
     let mut boards: Vec<i32> = Vec::new();
     boards.extend(in_board..=boards::count(conn));
@@ -146,11 +193,11 @@ fn board_quick(
         let last_seen = board_states::get(conn, user.id, board);
         if let Ok((post, post_user)) = posts::after(conn, board, last_seen) {
             board_states::update(conn, user.id, board, post.created_at_us);
-            return post_print(&post, &post_user);
+            return post_print(&post, &post_user).into();
         }
     }
 
-    vec![NO_MORE_UNREAD.to_string()]
+    NO_MORE_UNREAD.into()
 }
 
 /// Add a new post to the board.
@@ -159,15 +206,15 @@ fn board_write(
     _cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return vec![NOT_IN_BOARD.to_string()];
+            return NOT_IN_BOARD.into();
         }
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
-    vec![format!("Published at {}", post.created_at())]
+    format!("Published at {}", post.created_at()).into()
 }
 
 /// Tell the user where they are.
@@ -176,11 +223,11 @@ pub fn state_describe(
     cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return vec![format!("You are {}.", user)];
+            return format!("You are {}.", user).into();
         }
     };
     let board = boards::get(conn, in_board).unwrap();
@@ -188,6 +235,7 @@ pub fn state_describe(
         format!("You are {} in board #{}: {}.\n", user, in_board, board.name),
         system_info(cfg),
     ]
+    .into()
 }
 
 /// Show the most recently active users.
@@ -196,13 +244,13 @@ pub fn user_active(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let mut out = Vec::new();
     out.push("Active users:\n".to_string());
     for user in users::recently_active(conn, 10) {
         out.push(format!("{}: {}", user.last_acted_at(), user));
     }
-    out
+    out.into()
 }
 
 /// Show the most recently seen users.
@@ -211,13 +259,13 @@ pub fn user_seen(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Vec<String> {
+) -> Response {
     let mut out = Vec::new();
     out.push("Seen users:\n".to_string());
     for user in users::recently_seen(conn, 10) {
         out.push(format!("{}: {}", user.last_seen_at(), user));
     }
-    out
+    out.into()
 }
 
 /// Show the user all commands available to them right now.
@@ -264,7 +312,7 @@ pub struct Command {
     /// A function that determines whether the user in this state can run this command.
     pub available: fn(&User, &BBSConfig) -> bool,
     /// The function that implements this command.
-    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Vec<String>,
+    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Response,
 }
 
 /// Build a Regex in our common fashion.
