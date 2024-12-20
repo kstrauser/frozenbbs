@@ -1,5 +1,5 @@
 use crate::db::{board_states, boards, posts, users, Post, User};
-use crate::BBSConfig;
+use crate::{system_info, BBSConfig};
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 
@@ -186,15 +186,7 @@ pub fn state_describe(
     let board = boards::get(conn, in_board).unwrap();
     vec![
         format!("You are {} in board #{}: {}.\n", user, in_board, board.name),
-        format!(
-            "{} is running {}.",
-            cfg.bbs_name,
-            build_info::format!("{} v{}/{} built at {}",
-                $.crate_info.name,
-                $.crate_info.version,
-                $.version_control.unwrap().git().unwrap().commit_short_id,
-                $.timestamp)
-        ),
+        system_info(cfg),
     ]
 }
 

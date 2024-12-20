@@ -1,6 +1,6 @@
 use crate::commands::{help, setup, Command};
 use crate::db::users;
-use crate::BBSConfig;
+use crate::{system_info, BBSConfig};
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
@@ -19,6 +19,8 @@ pub fn dispatch(
     } else {
         log::info!("Command from new {}: '{}'", user, cmdline);
         out.push(format!("Welcome to {}!\n", cfg.bbs_name));
+        out.push(system_info(cfg));
+        out.push("".to_string());
         out.extend(help(cfg, &user, commands));
         out.push("".to_string());
     }

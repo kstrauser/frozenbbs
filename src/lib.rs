@@ -69,3 +69,16 @@ Edit it before doing anything else!
         }
     }
 }
+
+/// Describe this system.
+pub fn system_info(cfg: &BBSConfig) -> String {
+    format!(
+        "{} is running {}.",
+        cfg.bbs_name,
+        build_info::format!("{} v{}/{} built at {}",
+            $.crate_info.name,
+            $.crate_info.version,
+            $.version_control.unwrap().git().unwrap().commit_short_id,
+            $.timestamp)
+    )
+}
