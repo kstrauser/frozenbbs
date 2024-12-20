@@ -23,7 +23,7 @@ pub fn dispatch(
         out.push("".to_string());
     }
     for command in commands.iter() {
-        if !(command.available)(&user) {
+        if !(command.available)(&user, cfg) {
             continue;
         }
         if let Some(captures) = command.pattern.captures(cmdline) {

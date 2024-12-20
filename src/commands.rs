@@ -177,7 +177,7 @@ pub fn help(cfg: &BBSConfig, user: &User, commands: &Vec<Command>) -> Vec<String
     out.push("Commands:\n".to_string());
     // Get the width of the widest argument of any available command.
     for command in commands {
-        if (command.available)(user) {
+        if (command.available)(user, cfg) {
             out.push(format!("{} : {}", command.arg, command.help));
         }
     }
@@ -194,15 +194,24 @@ pub fn help(cfg: &BBSConfig, user: &User, commands: &Vec<Command>) -> Vec<String
     out
 }
 
+// Contexts in which certain actions may be available
+
+/// These commands are always available.
+fn available_always(_user: &User, _cfg: &BBSConfig) -> bool {
+    true
+}
+
+/// These commands are available to sysops.
+fn available_to_sysops(user: &User, cfg: &BBSConfig) -> bool {
+    cfg.sysops.contains(&user.node_id)
+}
+
 /// Return whether the user is in a message board.
-fn available_in_board(user: &User) -> bool {
+fn available_in_board(user: &User, _cfg: &BBSConfig) -> bool {
     user.in_board.is_some()
 }
 
-/// These commands are always available.
-fn available_always(_user: &User) -> bool {
-    true
-}
+// Build the collection of defined commands
 
 /// Information about a command a user can execute.
 pub struct Command {
@@ -213,7 +222,7 @@ pub struct Command {
     /// The pattern matching the command and its arguments.
     pub pattern: Regex,
     /// A function that determines whether the user in this state can run this command.
-    pub available: fn(&User) -> bool,
+    pub available: fn(&User, &BBSConfig) -> bool,
     /// The function that implements this command.
     pub func: fn(&mut SqliteConnection, &mut User, Vec<&str>) -> Vec<String>,
 }
