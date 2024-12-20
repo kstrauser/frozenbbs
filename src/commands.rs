@@ -282,6 +282,27 @@ pub fn help(cfg: &BBSConfig, user: &User, commands: &Vec<Command>) -> Vec<String
     out
 }
 
+// Sysop commands
+
+/// Send a BBS advertisement to the main channel.
+pub fn sysop_advertise(
+    _conn: &mut SqliteConnection,
+    cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Response {
+    Response {
+        out: vec![
+            "Hi! I'm running a new BBS program here that I'm developing.".to_string(),
+            "".to_string(),
+            system_info(cfg),
+            "".to_string(),
+            "DM me to try it out!".to_string(),
+        ],
+        destination: Destination::Broadcast,
+    }
+}
+
 // Contexts in which certain actions may be available
 
 /// These commands are always available.
@@ -387,6 +408,13 @@ pub fn setup() -> Vec<Command> {
             pattern: make_pattern(r"w(.{1,})"),
             available: available_in_board,
             func: board_write,
+        },
+        Command {
+            arg: "!A".to_string(),
+            help: "Send an advertisement to channel 0.".to_string(),
+            pattern: make_pattern("!a"),
+            available: available_to_sysops,
+            func: sysop_advertise,
         },
         Command {
             arg: "?".to_string(),
