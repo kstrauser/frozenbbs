@@ -13,7 +13,7 @@ use meshtastic::packet::PacketDestination;
 use meshtastic::packet::PacketRouter;
 use meshtastic::protobufs::{from_radio, mesh_packet, PortNum, User};
 use meshtastic::protobufs::{FromRadio, MeshPacket};
-use meshtastic::types::NodeId;
+use meshtastic::types::{MeshChannel, NodeId};
 use meshtastic::utils;
 use prost::Message;
 use std::error::Error;
@@ -67,6 +67,13 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
     }
 }
 
+/// Replies that commands send back to the radio.
+struct ReplyMessage {
+    channel: MeshChannel,
+    destination: u32,
+    out: Vec<String>,
+}
+
 pub async fn event_loop(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
@@ -97,16 +104,16 @@ Listening for messages.",
     );
 
     while let Some(decoded) = decoded_listener.recv().await {
-        if let Some((sender, out)) = handle_packet(conn, cfg, &commands, decoded, my_id) {
-            for page in paginate(out, MAX_LENGTH) {
+        if let Some(reply) = handle_packet(conn, cfg, &commands, decoded, my_id) {
+            for page in paginate(reply.out, MAX_LENGTH) {
                 use meshtastic::types::NodeId;
                 stream_api
                     .send_text(
                         &mut router,
                         page,
-                        PacketDestination::Node(NodeId::new(sender)),
+                        PacketDestination::Node(NodeId::new(reply.destination)),
                         true,
-                        0.into(),
+                        reply.channel,
                     )
                     .await?;
             }
@@ -122,7 +129,7 @@ fn handle_packet(
     commands: &Vec<commands::Command>,
     radio_packet: FromRadio,
     my_id: u32,
-) -> Option<(u32, Vec<String>)> {
+) -> Option<ReplyMessage> {
     let payload_variant = match radio_packet.payload_variant {
         Some(x) => x,
         _ => return None,
@@ -146,7 +153,11 @@ fn handle_packet(
         log::debug!("Received command from {}: <{}>", node_id, command);
         let out = dispatch(conn, cfg, &node_id, commands, command.trim());
         log::debug!("Result: {:?}", &out);
-        return Some((meshpacket.from, out));
+        return Some(ReplyMessage {
+            channel: 0.into(),
+            destination: meshpacket.from,
+            out,
+        });
     }
     if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = User::decode(&decoded.payload[..]).unwrap();
