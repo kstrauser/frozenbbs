@@ -86,5 +86,5 @@ pub fn count(conn: &mut SqliteConnection) -> i32 {
     posts_dsl::posts
         .count()
         .get_result::<i64>(conn)
-        .expect("Error saving new post") as i32
+        .expect("Error counting posts") as i32
 }

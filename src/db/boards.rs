@@ -36,5 +36,8 @@ pub fn get(conn: &mut SqliteConnection, board_id: i32) -> QueryResult<Board> {
 
 /// Get the number of configured boards
 pub fn count(conn: &mut SqliteConnection) -> i32 {
-    all(conn).into_iter().map(|x| x.id).max().unwrap_or(0)
+    dsl::boards
+        .count()
+        .get_result::<i64>(conn)
+        .expect("Error counting boards") as i32
 }
