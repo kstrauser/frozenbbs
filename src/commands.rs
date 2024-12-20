@@ -17,15 +17,15 @@ pub enum Destination {
 }
 
 /// Where and what to send back to the radio.
-pub struct Response {
+pub struct Reply {
     pub out: Vec<String>,
     pub destination: Destination,
 }
 
 /// The command returns a whole Vec of Strings.
-impl From<Vec<String>> for Response {
+impl From<Vec<String>> for Reply {
     fn from(out: Vec<String>) -> Self {
-        Response {
+        Reply {
             out,
             destination: Destination::Sender,
         }
@@ -33,9 +33,9 @@ impl From<Vec<String>> for Response {
 }
 
 /// The command returns a single &str.
-impl From<&str> for Response {
+impl From<&str> for Reply {
     fn from(out: &str) -> Self {
-        Response {
+        Reply {
             out: vec![out.to_string()],
             destination: Destination::Sender,
         }
@@ -43,9 +43,9 @@ impl From<&str> for Response {
 }
 
 /// The command returns a single String.
-impl From<String> for Response {
+impl From<String> for Reply {
     fn from(out: String) -> Self {
-        Response {
+        Reply {
             out: vec![out],
             destination: Destination::Sender,
         }
@@ -60,13 +60,10 @@ fn board_lister(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
-        return Response {
-            out: vec![NO_BOARDS.to_string()],
-            destination: Destination::Sender,
-        };
+        return NO_BOARDS.into();
     }
     let mut out = Vec::new();
     out.push("Boards:\n".to_string());
@@ -85,7 +82,7 @@ fn board_enter(
     _cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
@@ -118,7 +115,7 @@ fn board_current(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -139,7 +136,7 @@ fn board_previous(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -161,7 +158,7 @@ fn board_next(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -183,7 +180,7 @@ fn board_quick(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let in_board = user.in_board.unwrap_or(1);
     let mut boards: Vec<i32> = Vec::new();
     boards.extend(in_board..=boards::count(conn));
@@ -206,7 +203,7 @@ fn board_write(
     _cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -223,7 +220,7 @@ pub fn state_describe(
     cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -244,7 +241,7 @@ pub fn user_active(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let mut out = Vec::new();
     out.push("Active users:\n".to_string());
     for user in users::recently_active(conn, 10) {
@@ -259,7 +256,7 @@ pub fn user_seen(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Response {
+) -> Reply {
     let mut out = Vec::new();
     out.push("Seen users:\n".to_string());
     for user in users::recently_seen(conn, 10) {
@@ -290,8 +287,8 @@ pub fn sysop_advertise(
     cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Response {
-    Response {
+) -> Reply {
+    Reply {
         out: vec![
             "Hi! I'm running a new BBS program here that I'm developing.".to_string(),
             "".to_string(),
@@ -333,7 +330,7 @@ pub struct Command {
     /// A function that determines whether the user in this state can run this command.
     pub available: fn(&User, &BBSConfig) -> bool,
     /// The function that implements this command.
-    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Response,
+    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Reply,
 }
 
 /// Build a Regex in our common fashion.
