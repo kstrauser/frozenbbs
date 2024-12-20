@@ -1,20 +1,20 @@
-use crate::hex_id_to_num;
-use crate::paginate::{paginate, MAX_LENGTH};
 use crate::{
     client::dispatch,
     commands,
     db::{stats, users},
-    num_id_to_hex, BBSConfig,
+    hex_id_to_num, num_id_to_hex,
+    paginate::{paginate, MAX_LENGTH},
+    BBSConfig,
 };
 use diesel::SqliteConnection;
-use meshtastic;
-use meshtastic::api::StreamApi;
-use meshtastic::packet::PacketDestination;
-use meshtastic::packet::PacketRouter;
-use meshtastic::protobufs::{from_radio, mesh_packet, PortNum, User};
-use meshtastic::protobufs::{FromRadio, MeshPacket};
-use meshtastic::types::{MeshChannel, NodeId};
-use meshtastic::utils;
+use meshtastic::{
+    self,
+    api::StreamApi,
+    packet::{PacketDestination, PacketRouter},
+    protobufs::{from_radio, mesh_packet, FromRadio, MeshPacket, PortNum, User},
+    types::{MeshChannel, NodeId},
+    utils,
+};
 use prost::Message;
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
@@ -70,7 +70,7 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
 /// Replies that commands send back to the radio.
 struct ReplyMessage {
     channel: MeshChannel,
-    destination: u32,
+    destination: PacketDestination,
     out: Vec<String>,
 }
 
@@ -106,15 +106,8 @@ Listening for messages.",
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some(reply) = handle_packet(conn, cfg, &commands, decoded, my_id) {
             for page in paginate(reply.out, MAX_LENGTH) {
-                use meshtastic::types::NodeId;
                 stream_api
-                    .send_text(
-                        &mut router,
-                        page,
-                        PacketDestination::Node(NodeId::new(reply.destination)),
-                        true,
-                        reply.channel,
-                    )
+                    .send_text(&mut router, page, reply.destination, true, reply.channel)
                     .await?;
             }
         }
@@ -155,7 +148,7 @@ fn handle_packet(
         log::debug!("Result: {:?}", &out);
         return Some(ReplyMessage {
             channel: 0.into(),
-            destination: meshpacket.from,
+            destination: PacketDestination::Node(NodeId::new(meshpacket.from)),
             out,
         });
     }
