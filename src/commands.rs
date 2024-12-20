@@ -144,11 +144,14 @@ pub fn state_describe(
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
-            return vec![NOT_IN_BOARD.to_string()];
+            return vec![format!("You are {}.", user)];
         }
     };
     let board = boards::get(conn, in_board).unwrap();
-    vec![format!("You are in board #{}: {}", in_board, board.name)]
+    vec![format!(
+        "You are {} in board #{}: {}.",
+        user, in_board, board.name
+    )]
 }
 
 /// Show the most recently active users.
