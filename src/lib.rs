@@ -33,6 +33,7 @@ pub struct BBSConfig {
     pub my_id: String,
     db_path: String,
     serial_device: String,
+    sysops: Vec<String>,
 }
 
 impl ::std::default::Default for BBSConfig {
@@ -62,6 +63,7 @@ Edit it before doing anything else!
             my_id: "cafeb33d".into(),
             db_path: data_home.join(db_path).to_str().unwrap().to_owned(),
             serial_device: "/dev/ttyUSB0".into(),
+            sysops: Vec::new(),
         }
     }
 }
