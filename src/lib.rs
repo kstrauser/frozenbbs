@@ -11,6 +11,7 @@ build_info::build_info!(fn build_info);
 
 pub const BBS_TAG: &str = "frozenbbs";
 
+/// Convert a node Id like 12345678 or !abcdef12 to their u32 value.
 pub fn hex_id_to_num(node_id: &str) -> u32 {
     u32::from_str_radix(
         if node_id.starts_with("!") {
@@ -23,7 +24,8 @@ pub fn hex_id_to_num(node_id: &str) -> u32 {
     .unwrap()
 }
 
-fn num_id_to_hex(node_num: u32) -> String {
+/// Convert a u32 node ID to its canonical !abcdef12 format.
+pub fn num_id_to_hex(node_num: u32) -> String {
     format!("!{:x}", node_num)
 }
 

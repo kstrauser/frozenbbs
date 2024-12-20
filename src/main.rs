@@ -1,5 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, client, db, server_serial, BBSConfig, BBS_TAG};
+use frozenbbs::{
+    admin, client, db, hex_id_to_num, num_id_to_hex, server_serial, BBSConfig, BBS_TAG,
+};
 use log::LevelFilter;
 
 // The command line layout
@@ -143,6 +145,11 @@ enum UserCommands {
     },
 }
 
+/// Convert a possibly mixed case node ID, with or without the leading !, to its canonical format.
+pub fn canonical_node_id(node_id: &str) -> String {
+    num_id_to_hex(hex_id_to_num(node_id))
+}
+
 /// The main command line handler.
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
@@ -166,13 +173,18 @@ async fn main() {
         .unwrap();
     let conn = &mut db::establish_connection(&cfg);
 
+    // Use the passed-in node ID, if given, or else the node's own ID.
+    let default_or = |node_id: &Option<String>| -> String {
+        canonical_node_id(&(if let Some(x) = node_id { x } else { &cfg.my_id }.clone()))
+    };
+
     match &cli.command {
         Some(Subsystems::Client { client_command }) => match client_command {
             Some(ClientCommands::Terminal { node_id }) => {
-                client::terminal(conn, &cfg, node_id.as_ref().unwrap_or(&cfg.my_id))
+                client::terminal(conn, &cfg, &default_or(node_id))
             }
             Some(ClientCommands::Command { node_id, command }) => {
-                client::command(conn, &cfg, node_id.as_ref().unwrap_or(&cfg.my_id), command)
+                client::command(conn, &cfg, &default_or(node_id), command)
             }
             None => {}
         },
@@ -194,12 +206,7 @@ async fn main() {
                 board_id,
                 node_id,
                 content,
-            }) => admin::post_add(
-                conn,
-                *board_id,
-                node_id.as_ref().unwrap_or(&cfg.my_id),
-                content,
-            ),
+            }) => admin::post_add(conn, *board_id, &default_or(node_id), content),
             None => {}
         },
         Some(Subsystems::User { user_command }) => match user_command {
@@ -208,9 +215,13 @@ async fn main() {
                 node_id,
                 short_name,
                 long_name,
-            }) => admin::user_observe(conn, node_id, short_name, long_name),
-            Some(UserCommands::Ban { node_id }) => admin::user_ban(conn, node_id),
-            Some(UserCommands::Unban { node_id }) => admin::user_unban(conn, node_id),
+            }) => admin::user_observe(conn, &canonical_node_id(node_id), short_name, long_name),
+            Some(UserCommands::Ban { node_id }) => {
+                admin::user_ban(conn, &canonical_node_id(node_id))
+            }
+            Some(UserCommands::Unban { node_id }) => {
+                admin::user_unban(conn, &canonical_node_id(node_id))
+            }
             None => {}
         },
         None => {}
