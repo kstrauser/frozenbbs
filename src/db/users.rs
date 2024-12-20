@@ -169,12 +169,12 @@ pub fn counts(conn: &mut SqliteConnection) -> (i32, i32) {
     let seen_users = dsl::users
         .count()
         .get_result::<i64>(conn)
-        .expect("Error saving new post") as i32;
+        .expect("Error counting seen users") as i32;
     let active_users = dsl::users
         .filter(dsl::last_acted_at_us.is_not_null())
         .count()
         .get_result::<i64>(conn)
-        .expect("Error saving new post") as i32;
+        .expect("Error counting active users") as i32;
 
     (seen_users, active_users)
 }
