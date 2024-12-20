@@ -1,4 +1,4 @@
-use crate::commands::{help, setup, Command, Response};
+use crate::commands::{help, setup, Command, Reply};
 use crate::db::users;
 use crate::{system_info, BBSConfig};
 use diesel::SqliteConnection;
@@ -11,7 +11,7 @@ pub fn dispatch(
     node_id: &str,
     commands: &Vec<Command>,
     cmdline: &str,
-) -> Response {
+) -> Reply {
     let mut out = Vec::new();
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if seen {
@@ -38,7 +38,7 @@ pub fn dispatch(
                 .collect();
             let response = (command.func)(conn, cfg, &mut user, args);
             out.extend(response.out);
-            return Response {
+            return Reply {
                 out,
                 destination: response.destination,
             };
