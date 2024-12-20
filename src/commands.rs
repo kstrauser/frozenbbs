@@ -11,7 +11,12 @@ const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "Not a valid number!";
 
 /// List all the boards.
-fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> Vec<String> {
+fn board_lister(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
         return vec![NO_BOARDS.to_string()];
@@ -28,7 +33,12 @@ fn board_lister(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>)
 }
 
 /// Enter a board.
-fn board_enter(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> Vec<String> {
+fn board_enter(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    args: Vec<&str>,
+) -> Vec<String> {
     let num = match args[0].parse::<i32>() {
         Ok(num) => num,
         Err(_) => {
@@ -56,7 +66,12 @@ fn post_print(post: &Post, user: &User) -> Vec<String> {
 }
 
 /// Get the current message in the board.
-fn board_current(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
+fn board_current(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -72,7 +87,12 @@ fn board_current(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>)
 }
 
 /// Get the previous message in the board.
-fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
+fn board_previous(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -89,7 +109,12 @@ fn board_previous(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>
 }
 
 /// Get the next message in the board.
-fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
+fn board_next(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -106,7 +131,12 @@ fn board_next(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) ->
 }
 
 ///Get the next unread message in any board.
-fn board_quick(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -> Vec<String> {
+fn board_quick(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let in_board = user.in_board.unwrap_or(1);
     let mut boards: Vec<i32> = Vec::new();
     boards.extend(in_board..=boards::count(conn));
@@ -124,7 +154,12 @@ fn board_quick(conn: &mut SqliteConnection, user: &mut User, _args: Vec<&str>) -
 }
 
 /// Add a new post to the board.
-fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) -> Vec<String> {
+fn board_write(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    args: Vec<&str>,
+) -> Vec<String> {
     let in_board = match user.in_board {
         Some(v) => v,
         None => {
@@ -138,6 +173,7 @@ fn board_write(conn: &mut SqliteConnection, user: &mut User, args: Vec<&str>) ->
 /// Tell the user where they are.
 pub fn state_describe(
     conn: &mut SqliteConnection,
+    cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
 ) -> Vec<String> {
@@ -148,14 +184,27 @@ pub fn state_describe(
         }
     };
     let board = boards::get(conn, in_board).unwrap();
-    vec![format!(
-        "You are {} in board #{}: {}.",
-        user, in_board, board.name
-    )]
+    vec![
+        format!("You are {} in board #{}: {}.\n", user, in_board, board.name),
+        format!(
+            "{} is running {}.",
+            cfg.bbs_name,
+            build_info::format!("{} v{}/{} built at {}",
+                $.crate_info.name,
+                $.crate_info.version,
+                $.version_control.unwrap().git().unwrap().commit_short_id,
+                $.timestamp)
+        ),
+    ]
 }
 
 /// Show the most recently active users.
-pub fn user_active(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> Vec<String> {
+pub fn user_active(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let mut out = Vec::new();
     out.push("Active users:\n".to_string());
     for user in users::recently_active(conn, 10) {
@@ -165,7 +214,12 @@ pub fn user_active(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&st
 }
 
 /// Show the most recently seen users.
-pub fn user_seen(conn: &mut SqliteConnection, _user: &mut User, _args: Vec<&str>) -> Vec<String> {
+pub fn user_seen(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Vec<String> {
     let mut out = Vec::new();
     out.push("Seen users:\n".to_string());
     for user in users::recently_seen(conn, 10) {
@@ -184,16 +238,7 @@ pub fn help(cfg: &BBSConfig, user: &User, commands: &Vec<Command>) -> Vec<String
             out.push(format!("{} : {}", command.arg, command.help));
         }
     }
-    out.push("H : This help\n".to_string());
-    out.push(format!(
-        "{} is running {}.",
-        cfg.bbs_name,
-        build_info::format!("{} v{}/{} built at {}",
-            $.crate_info.name,
-            $.crate_info.version,
-            $.version_control.unwrap().git().unwrap().commit_short_id,
-            $.timestamp)
-    ));
+    out.push("H : This help".to_string());
     out
 }
 
@@ -227,7 +272,7 @@ pub struct Command {
     /// A function that determines whether the user in this state can run this command.
     pub available: fn(&User, &BBSConfig) -> bool,
     /// The function that implements this command.
-    pub func: fn(&mut SqliteConnection, &mut User, Vec<&str>) -> Vec<String>,
+    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Vec<String>,
 }
 
 /// Build a Regex in our common fashion.
@@ -305,7 +350,7 @@ pub fn setup() -> Vec<Command> {
         },
         Command {
             arg: "?".to_string(),
-            help: "Where am I?".to_string(),
+            help: "Who and where am I?".to_string(),
             pattern: make_pattern(r"\?"),
             available: available_always,
             func: state_describe,
