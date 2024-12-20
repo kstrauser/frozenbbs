@@ -34,7 +34,7 @@ pub fn dispatch(
                 .flatten()
                 .map(|x| x.as_str().trim())
                 .collect();
-            out.extend((command.func)(conn, &mut user, args));
+            out.extend((command.func)(conn, cfg, &mut user, args));
             return out;
         }
     }
