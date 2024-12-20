@@ -11,7 +11,7 @@ const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "Not a valid number!";
 
 /// To where shall I respond?
-pub enum Destination {
+pub enum ReplyDestination {
     Sender,
     Broadcast,
 }
@@ -19,7 +19,7 @@ pub enum Destination {
 /// Where and what to send back to the radio.
 pub struct Reply {
     pub out: Vec<String>,
-    pub destination: Destination,
+    pub destination: ReplyDestination,
 }
 
 /// The command returns a whole Vec of Strings.
@@ -27,7 +27,7 @@ impl From<Vec<String>> for Reply {
     fn from(out: Vec<String>) -> Self {
         Reply {
             out,
-            destination: Destination::Sender,
+            destination: ReplyDestination::Sender,
         }
     }
 }
@@ -37,7 +37,7 @@ impl From<&str> for Reply {
     fn from(out: &str) -> Self {
         Reply {
             out: vec![out.to_string()],
-            destination: Destination::Sender,
+            destination: ReplyDestination::Sender,
         }
     }
 }
@@ -47,7 +47,7 @@ impl From<String> for Reply {
     fn from(out: String) -> Self {
         Reply {
             out: vec![out],
-            destination: Destination::Sender,
+            destination: ReplyDestination::Sender,
         }
     }
 }
@@ -296,7 +296,7 @@ pub fn sysop_advertise(
             "".to_string(),
             "DM me to try it out!".to_string(),
         ],
-        destination: Destination::Broadcast,
+        destination: ReplyDestination::Broadcast,
     }
 }
 

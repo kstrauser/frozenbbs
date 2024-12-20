@@ -1,6 +1,6 @@
 use crate::{
     client::dispatch,
-    commands::{self, Destination},
+    commands::{self, Reply, ReplyDestination},
     db::{stats, users},
     hex_id_to_num, num_id_to_hex,
     paginate::{paginate, MAX_LENGTH},
@@ -12,7 +12,7 @@ use meshtastic::{
     api::StreamApi,
     packet::{PacketDestination, PacketRouter},
     protobufs::{from_radio, mesh_packet, FromRadio, MeshPacket, PortNum, User},
-    types::{MeshChannel, NodeId},
+    types::NodeId,
     utils,
 };
 use prost::Message;
@@ -68,10 +68,9 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
 }
 
 /// Replies that commands send back to the radio.
-struct ReplyMessage {
-    channel: MeshChannel,
-    destination: PacketDestination,
-    out: Vec<String>,
+struct Response {
+    sender: u32,
+    reply: Reply,
 }
 
 pub async fn event_loop(
@@ -104,10 +103,18 @@ Listening for messages.",
     );
 
     while let Some(decoded) = decoded_listener.recv().await {
-        if let Some(reply) = handle_packet(conn, cfg, &commands, decoded, my_id) {
-            for page in paginate(reply.out, MAX_LENGTH) {
+        if let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) {
+            let (channel, destination) = match response.reply.destination {
+                // Both destinations go to channel 0 right now. Support for a separate admin
+                // channel seems likely to follow soon so we're plumbing it in from the start.
+                ReplyDestination::Sender => {
+                    (0, PacketDestination::Node(NodeId::new(response.sender)))
+                }
+                ReplyDestination::Broadcast => (0, PacketDestination::Broadcast),
+            };
+            for page in paginate(response.reply.out, MAX_LENGTH) {
                 stream_api
-                    .send_text(&mut router, page, reply.destination, true, reply.channel)
+                    .send_text(&mut router, page, destination, true, channel.into())
                     .await?;
             }
         }
@@ -122,7 +129,7 @@ fn handle_packet(
     commands: &Vec<commands::Command>,
     radio_packet: FromRadio,
     my_id: u32,
-) -> Option<ReplyMessage> {
+) -> Option<Response> {
     let payload_variant = match radio_packet.payload_variant {
         Some(x) => x,
         _ => return None,
@@ -144,20 +151,11 @@ fn handle_packet(
         let message = std::str::from_utf8(&decoded.payload);
         let command = message.unwrap();
         log::debug!("Received command from {}: <{}>", node_id, command);
-        let response = dispatch(conn, cfg, &node_id, commands, command.trim());
-        log::debug!("Result: {:?}", &response.out);
-        let channel = match response.destination {
-            Destination::Sender => 0,
-            Destination::Broadcast => 0,
-        };
-        let destination = match response.destination {
-            Destination::Sender => PacketDestination::Node(NodeId::new(meshpacket.from)),
-            Destination::Broadcast => PacketDestination::Broadcast,
-        };
-        return Some(ReplyMessage {
-            channel: channel.into(),
-            destination,
-            out: response.out,
+        let reply = dispatch(conn, cfg, &node_id, commands, command.trim());
+        log::debug!("Result: {:?}", &reply.out);
+        return Some(Response {
+            sender: meshpacket.from,
+            reply,
         });
     }
     if decoded.portnum == PortNum::NodeinfoApp as i32 {
