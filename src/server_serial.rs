@@ -77,7 +77,7 @@ pub async fn event_loop(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let commands = commands::setup();
+    let commands = commands::command_structure();
     let stream_api = StreamApi::new();
 
     let serial_stream =
@@ -126,7 +126,7 @@ Listening for messages.",
 fn handle_packet(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
-    commands: &Vec<commands::Command>,
+    menus: &commands::Menus,
     radio_packet: FromRadio,
     my_id: u32,
 ) -> Option<Response> {
@@ -151,7 +151,7 @@ fn handle_packet(
         let message = std::str::from_utf8(&decoded.payload);
         let command = message.unwrap();
         log::debug!("Received command from {}: <{}>", node_id, command);
-        let reply = dispatch(conn, cfg, &node_id, commands, command.trim());
+        let reply = dispatch(conn, cfg, &node_id, menus, command.trim());
         log::debug!("Result: {:?}", &reply.out);
         return Some(Response {
             sender: meshpacket.from,

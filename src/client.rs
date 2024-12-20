@@ -1,15 +1,17 @@
-use crate::commands::{help, setup, Command, Reply};
+use crate::commands::{command_structure, help_menu, help_toplevel, Menus, Reply};
 use crate::db::users;
 use crate::{system_info, BBSConfig};
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
+
+const NO_SUCH_HELP: &str = "That help section does not exist or is not available.";
 
 /// Handle a single command from a client and return its output.
 pub fn dispatch(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
     node_id: &str,
-    commands: &Vec<Command>,
+    menus: &Menus,
     cmdline: &str,
 ) -> Reply {
     let mut out = Vec::new();
@@ -18,42 +20,60 @@ pub fn dispatch(
         log::info!("Command from {}: '{}'", user, cmdline);
     } else {
         log::info!("Command from new {}: '{}'", user, cmdline);
-        out.push(format!("Welcome to {}!\n", cfg.bbs_name));
+        out.push(format!("Welcome to {}!", cfg.bbs_name));
+        out.push("".to_string());
         out.push(system_info(cfg));
         out.push("".to_string());
-        out.extend(help(cfg, &user, commands));
-        out.push("".to_string());
-    }
-    for command in commands.iter() {
-        if !(command.available)(&user, cfg) {
-            continue;
-        }
-        if let Some(captures) = command.pattern.captures(cmdline) {
-            // Collect all of the matched groups in the pattern into a vector of strs
-            let args = captures
-                .iter()
-                .skip(1)
-                .flatten()
-                .map(|x| x.as_str().trim())
-                .collect();
-            let response = (command.func)(conn, cfg, &mut user, args);
-            out.extend(response.out);
-            return Reply {
-                out,
-                destination: response.destination,
-            };
-        }
-    }
-    if !seen {
+        out.extend(help_toplevel(cfg, &user, menus));
         return out.into();
     }
-    match cmdline.to_lowercase().as_str() {
-        "h" => {}
-        _ => {
-            out.push("That's not an available command here.\n".to_string());
+
+    let cmdline = cmdline.to_lowercase();
+    let cmdline = cmdline.as_str();
+
+    // Special handling for help requests
+    if cmdline.starts_with("h") {
+        let help_suffix = cmdline.strip_prefix("h").unwrap();
+        for menu in menus {
+            if menu.help_suffix.to_lowercase() == help_suffix {
+                if menu.any_available(cfg, &user) {
+                    return help_menu(cfg, &user, menu).into();
+                }
+                break;
+            }
+        }
+        let mut out = Vec::new();
+        if !help_suffix.is_empty() {
+            out.push(format!("{}\n", NO_SUCH_HELP));
+        }
+        out.extend(help_toplevel(cfg, &user, menus));
+        return out.into();
+    }
+
+    for menu in menus {
+        for command in menu.commands.iter() {
+            if !(command.available)(cfg, &user) {
+                continue;
+            }
+            if let Some(captures) = command.pattern.captures(cmdline) {
+                // Collect all of the matched groups in the pattern into a vector of strs
+                let args = captures
+                    .iter()
+                    .skip(1)
+                    .flatten()
+                    .map(|x| x.as_str().trim())
+                    .collect();
+                let response = (command.func)(conn, cfg, &mut user, args);
+                out.extend(response.out);
+                return Reply {
+                    out,
+                    destination: response.destination,
+                };
+            }
         }
     }
-    out.extend(help(cfg, &user, commands));
+    out.push("That's not an available command here.\n".to_string());
+    out.extend(help_toplevel(cfg, &user, menus));
     out.into()
 }
 
@@ -62,7 +82,7 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
     let mut stdout = io::stdout();
     let mut command = String::new();
     let stdin = io::stdin();
-    let commands = setup();
+    let commands = command_structure();
 
     println!("Connected. ^D to quit.");
 
@@ -90,7 +110,7 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
 pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, command: &str) {
     println!(
         "{}",
-        dispatch(conn, cfg, node_id, &setup(), command)
+        dispatch(conn, cfg, node_id, &command_structure(), command)
             .out
             .join("\n")
     );
