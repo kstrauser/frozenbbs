@@ -1,6 +1,6 @@
 use crate::{
     client::dispatch,
-    commands,
+    commands::{self, Destination},
     db::{stats, users},
     hex_id_to_num, num_id_to_hex,
     paginate::{paginate, MAX_LENGTH},
@@ -144,12 +144,20 @@ fn handle_packet(
         let message = std::str::from_utf8(&decoded.payload);
         let command = message.unwrap();
         log::debug!("Received command from {}: <{}>", node_id, command);
-        let out = dispatch(conn, cfg, &node_id, commands, command.trim());
-        log::debug!("Result: {:?}", &out);
+        let response = dispatch(conn, cfg, &node_id, commands, command.trim());
+        log::debug!("Result: {:?}", &response.out);
+        let channel = match response.destination {
+            Destination::Sender => 0,
+            Destination::Broadcast => 0,
+        };
+        let destination = match response.destination {
+            Destination::Sender => PacketDestination::Node(NodeId::new(meshpacket.from)),
+            Destination::Broadcast => PacketDestination::Broadcast,
+        };
         return Some(ReplyMessage {
-            channel: 0.into(),
-            destination: PacketDestination::Node(NodeId::new(meshpacket.from)),
-            out,
+            channel: channel.into(),
+            destination,
+            out: response.out,
         });
     }
     if decoded.portnum == PortNum::NodeinfoApp as i32 {

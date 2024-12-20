@@ -1,4 +1,4 @@
-use crate::commands::{help, setup, Command};
+use crate::commands::{help, setup, Command, Response};
 use crate::db::users;
 use crate::{system_info, BBSConfig};
 use diesel::SqliteConnection;
@@ -11,7 +11,7 @@ pub fn dispatch(
     node_id: &str,
     commands: &Vec<Command>,
     cmdline: &str,
-) -> Vec<String> {
+) -> Response {
     let mut out = Vec::new();
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if seen {
@@ -36,12 +36,16 @@ pub fn dispatch(
                 .flatten()
                 .map(|x| x.as_str().trim())
                 .collect();
-            out.extend((command.func)(conn, cfg, &mut user, args));
-            return out;
+            let response = (command.func)(conn, cfg, &mut user, args);
+            out.extend(response.out);
+            return Response {
+                out,
+                destination: response.destination,
+            };
         }
     }
     if !seen {
-        return out;
+        return out.into();
     }
     match cmdline.to_lowercase().as_str() {
         "h" => {}
@@ -50,7 +54,7 @@ pub fn dispatch(
         }
     }
     out.extend(help(cfg, &user, commands));
-    out
+    out.into()
 }
 
 /// Run a session from the local terminal.
@@ -75,7 +79,9 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
         }
         print!(
             "{}",
-            dispatch(conn, cfg, node_id, &commands, command.trim()).join("\n")
+            dispatch(conn, cfg, node_id, &commands, command.trim())
+                .out
+                .join("\n")
         );
     }
 }
@@ -84,6 +90,8 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
 pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, command: &str) {
     println!(
         "{}",
-        dispatch(conn, cfg, node_id, &setup(), command).join("\n")
+        dispatch(conn, cfg, node_id, &setup(), command)
+            .out
+            .join("\n")
     );
 }
