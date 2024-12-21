@@ -105,12 +105,10 @@ Listening for messages.",
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) {
             let (channel, destination) = match response.reply.destination {
-                // Both destinations go to channel 0 right now. Support for a separate admin
-                // channel seems likely to follow soon so we're plumbing it in from the start.
                 ReplyDestination::Sender => {
                     (0, PacketDestination::Node(NodeId::new(response.sender)))
                 }
-                ReplyDestination::Broadcast => (0, PacketDestination::Broadcast),
+                ReplyDestination::Broadcast => (cfg.public_channel, PacketDestination::Broadcast),
             };
             for page in paginate(response.reply.out, MAX_LENGTH) {
                 stream_api

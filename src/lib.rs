@@ -36,6 +36,8 @@ pub struct BBSConfig {
     db_path: String,
     serial_device: String,
     sysops: Vec<String>,
+    public_channel: u32,
+    ad_text: String,
 }
 
 impl ::std::default::Default for BBSConfig {
@@ -58,14 +60,17 @@ Edit it before doing anything else!
         let data_home = xdg_dirs.get_data_home();
         let data_home = Path::new(&data_home);
         let db_file = format!("{}.db", BBS_TAG);
-        let db_path = Path::new(&db_file);
+        let db_filename = Path::new(&db_file);
+        let db_path = data_home.join(db_filename).to_str().unwrap().to_owned();
 
         Self {
-            bbs_name: "Frozen BBS❅".to_string(),
-            my_id: "cafeb33d".into(),
-            db_path: data_home.join(db_path).to_str().unwrap().to_owned(),
+            bbs_name: "Frozen BBS❅".into(),
+            my_id: "!cafeb33d".into(),
+            db_path,
             serial_device: "/dev/ttyUSB0".into(),
             sysops: Vec::new(),
+            public_channel: 0,
+            ad_text: "I'm running a BBS on this node. DM me to get started!".into(),
         }
     }
 }

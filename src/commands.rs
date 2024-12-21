@@ -289,13 +289,7 @@ pub fn sysop_advertise(
     _args: Vec<&str>,
 ) -> Reply {
     Reply {
-        out: vec![
-            "Hi! I'm running a new BBS program here that I'm developing.".to_string(),
-            "".to_string(),
-            system_info(cfg),
-            "".to_string(),
-            "DM me to try it out!".to_string(),
-        ],
+        out: vec![cfg.ad_text.clone(), "".to_string(), system_info(cfg)],
         destination: ReplyDestination::Broadcast,
     }
 }
