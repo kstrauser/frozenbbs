@@ -467,7 +467,7 @@ pub fn command_structure() -> Menus {
         help_suffix: "!".to_string(),
         commands: vec![Command {
             arg: "!A".to_string(),
-            help: "Send an advertisement to channel 0.".to_string(),
+            help: "Send an advertisement to the public channel.".to_string(),
             pattern: make_pattern("!a"),
             available: available_to_sysops,
             func: sysop_advertise,
