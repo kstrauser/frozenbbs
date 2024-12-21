@@ -40,11 +40,14 @@ $ just db_init
 
 ```toml
 db_path = "/Users/myname/.local/share/frozenbbs/frozen.db"
-my_id = "cafeb33d"
+my_id = "!cafeb33d"
 serial_device = "/dev/ttyUSB0"
+sysops = ["!cafeb33d"]
+public_channel = 0
+ad_text = "I'm running a BBS on this node. DM me to get started!"
 ```
 
-The default `db_path` and `serial_device` values are likely to be usable as-is, although I had to use `/dev/ttyACM0` on my Raspberry Pi. `my_id` should be the hex name of the Meshtastic node you'll be running the BBS on. It will only process messages which are addressed to that ID.
+The default `db_path` and `serial_device` values are likely to be usable as-is, although I had to use `/dev/ttyACM0` on my Raspberry Pi. `my_id` should be the hex name of the Meshtastic node you'll be running the BBS on. It will only process messages which are addressed to that ID. Users listed in `sysops` can execute administration commands. `public_channel` sets the channel number to send BBS ads to. `ad_text` is the message that the sysop_advertise command sends to the public channel.
 
 # Running the program
 
@@ -148,8 +151,6 @@ Disconnected.
 
 **Running a server**
 
-As of this writing, config is hardcoded in the source. Sorry about that. It'll change soon.
-
 ```shell
 $ frozenbbs server
 Observed node at 1732851007: !f5f5a1c1/HPT1:Depeche Node
@@ -185,7 +186,8 @@ Today: Using the serial port, but with a powered USB hub between the Raspberry P
 
 # Releases
 
-v1.0.0, 2024-12-18: First official release.
+- **v1.1.0, 2024-12-20:** Lots of cleanups and quality-of-life enhancements. A menu system. Spam!
+- **v1.0.0, 2024-12-18:** First official release.
 
 # License
 
