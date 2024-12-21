@@ -1,5 +1,17 @@
+use vergen_git2::{BuildBuilder, Emitter, Git2Builder};
+
 fn main() {
-    // Calling `build_info_build::build_script` collects all data and makes it available to `build_info::build_info!`
-    // and `build_info::format!` in the main program.
-    build_info_build::build_script();
+    let build = BuildBuilder::default()
+        .build_timestamp(true)
+        .use_local(true)
+        .build()
+        .unwrap();
+    let git2 = Git2Builder::all_git().unwrap();
+    Emitter::default()
+        .add_instructions(&build)
+        .unwrap()
+        .add_instructions(&git2)
+        .unwrap()
+        .emit()
+        .unwrap();
 }
