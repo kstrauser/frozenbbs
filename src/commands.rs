@@ -190,6 +190,7 @@ fn board_quick(
         let last_seen = board_states::get(conn, user.id, board);
         if let Ok((post, post_user)) = posts::after(conn, board, last_seen) {
             board_states::update(conn, user.id, board, post.created_at_us);
+            let _ = users::enter_board(conn, user, board);
             return post_print(&post, &post_user).into();
         }
     }
