@@ -111,6 +111,7 @@ fn post_print(post: &Post, user: &User) -> Vec<String> {
     vec![
         format!("From: {}", user),
         format!("At: {}", post.created_at()),
+        "".to_string(),
         post.body.to_string(),
     ]
 }
@@ -239,17 +240,38 @@ fn board_quick(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Reply {
-    let in_board = user.in_board.unwrap_or(1);
-    let mut boards: Vec<i32> = Vec::new();
-    boards.extend(in_board..=boards::count(conn));
-    boards.extend(1..in_board);
+    // General note about this method: it's not terribly efficient and makes repeated calls to the
+    // database to get information it could fetch in some more complex joins. I highly, *highly*
+    // doubt this will ever be a performance issue, given how inherently small the related data is
+    // (it scales with the total number of boards which probably isn't going to be in the
+    // millions). The naive approach means the code is a lot simpler and easier to reason about,
+    // and avoids the common case where we'd be fetching *all* the data and then ignoring most
+    // of it.
 
-    for board in boards {
-        let last_seen = board_states::get(conn, user.id, board);
-        if let Ok((post, post_user)) = posts::after(conn, board, last_seen) {
-            board_states::update(conn, user.id, board, post.created_at_us);
-            let _ = users::enter_board(conn, user, board);
-            return post_print(&post, &post_user).into();
+    let in_board = user.in_board.unwrap_or(1);
+    // Make a series of board numbers, starting where the user currently is and going to the last,
+    // then starting at the beginning and back to just before where the user started.
+    //
+    // That way they'll see everything in this board, then everything in the next, then the next,
+    // and wrap around at the first board and keep going.
+    let mut board_nums: Vec<i32> = Vec::new();
+    board_nums.extend(in_board..=boards::count(conn));
+    board_nums.extend(1..in_board);
+
+    let mut out = vec![];
+    for board_num in board_nums {
+        let last_seen = board_states::get(conn, user.id, board_num);
+        if let Ok((post, post_user)) = posts::after(conn, board_num, last_seen) {
+            if board_num != in_board {
+                let _ = users::enter_board(conn, user, board_num);
+                // Let the user know they're moving to a different board to read the new post.
+                let board = boards::get(conn, board_num).unwrap();
+                out.push(format!("In {}:", board.name));
+                linefeed!(out);
+            }
+            board_states::update(conn, user.id, board_num, post.created_at_us);
+            out.extend(post_print(&post, &post_user));
+            return out.into();
         }
     }
 
