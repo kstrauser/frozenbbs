@@ -40,21 +40,20 @@ pub fn user_observe(conn: &mut SqliteConnection, node_id: &str, short_name: &str
     let (user, seen) =
         users::observe(conn, node_id, short_name, long_name, now_as_useconds()).unwrap();
     println!(
-        "Observed {} user #{}, '{}'",
+        "Observed {} user {}",
         if seen { "existing" } else { "new" },
-        user.id,
-        user.node_id
+        user
     );
 }
 
 pub fn user_ban(conn: &mut SqliteConnection, node_id: &str) {
     let user = users::ban(conn, node_id).unwrap();
-    println!("Banned user #{}, '{}'", user.id, user.node_id);
+    println!("Banned user {}", user);
 }
 
 pub fn user_unban(conn: &mut SqliteConnection, node_id: &str) {
     let user = users::unban(conn, node_id).unwrap();
-    println!("Unbanned user #{}, '{}'", user.id, user.node_id);
+    println!("Unbanned user {}", user);
 }
 
 pub fn board_list(conn: &mut SqliteConnection) {

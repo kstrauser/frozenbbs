@@ -61,18 +61,15 @@ pub fn state_describe(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Reply {
-    let in_board = match user.in_board {
-        Some(v) => v,
-        None => {
-            return format!("You are {}.", user).into();
-        }
-    };
-    let board = boards::get(conn, in_board).unwrap();
-    vec![
-        format!("You are {} in board #{}: {}.\n", user, in_board, board.name),
-        system_info(cfg),
-    ]
-    .into()
+    let mut out = vec![format!("Hi, {}!", user)];
+    if let Some(user_board) = user.in_board {
+        let board = boards::get(conn, user_board).unwrap();
+        out.push("".to_string());
+        out.push(format!("You are in board {}.", board));
+    }
+    out.push("".to_string());
+    out.push(system_info(cfg));
+    out.into()
 }
 
 /// Show the most recently active users.
@@ -131,15 +128,9 @@ fn board_lister(
     out.push("Boards:\n".to_string());
     for board in boards::all(conn) {
         if user.in_board.is_some() && user.in_board.unwrap() == board.id {
-            out.push(format!(
-                "* #{} {}: {}",
-                board.id, board.name, board.description
-            ));
+            out.push(format!("* {}", board));
         } else {
-            out.push(format!(
-                "#{} {}: {}",
-                board.id, board.name, board.description
-            ));
+            out.push(board.to_string());
         }
     }
     if user.in_board.is_some() {

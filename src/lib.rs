@@ -7,8 +7,6 @@ pub mod server_serial;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-build_info::build_info!(fn build_info);
-
 pub const BBS_TAG: &str = "frozenbbs";
 
 /// Convert a node Id like 12345678 or !abcdef12 to their u32 value.
@@ -78,12 +76,11 @@ Edit it before doing anything else!
 /// Describe this system.
 pub fn system_info(cfg: &BBSConfig) -> String {
     format!(
-        "{} is running {}.",
+        "{} is running {} v{}/{} built at {}.",
         cfg.bbs_name,
-        build_info::format!("{} v{}/{} built at {}",
-            $.crate_info.name,
-            $.crate_info.version,
-            $.version_control.unwrap().git().unwrap().commit_short_id,
-            $.timestamp)
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        env!("VERGEN_GIT_DESCRIBE"),
+        &env!("VERGEN_BUILD_TIMESTAMP").to_string()[..22],
     )
 }

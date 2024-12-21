@@ -30,6 +30,12 @@ impl Board {
     }
 }
 
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "#{} {}: {}", self.id, self.name, self.description)
+    }
+}
+
 #[derive(Insertable, Validate)]
 #[diesel(table_name = boards)]
 pub struct NewBoard<'a> {
