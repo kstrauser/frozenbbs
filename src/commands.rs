@@ -52,7 +52,60 @@ impl From<String> for Reply {
     }
 }
 
-// The commands
+// General commands
+
+/// Tell the user where they are.
+pub fn state_describe(
+    conn: &mut SqliteConnection,
+    cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Reply {
+    let in_board = match user.in_board {
+        Some(v) => v,
+        None => {
+            return format!("You are {}.", user).into();
+        }
+    };
+    let board = boards::get(conn, in_board).unwrap();
+    vec![
+        format!("You are {} in board #{}: {}.\n", user, in_board, board.name),
+        system_info(cfg),
+    ]
+    .into()
+}
+
+/// Show the most recently active users.
+pub fn user_active(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Reply {
+    let mut out = Vec::new();
+    out.push("Active users:\n".to_string());
+    for user in users::recently_active(conn, 10) {
+        out.push(format!("{}: {}", user.last_acted_at(), user));
+    }
+    out.into()
+}
+
+/// Show the most recently seen users.
+pub fn user_seen(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Reply {
+    let mut out = Vec::new();
+    out.push("Seen users:\n".to_string());
+    for user in users::recently_seen(conn, 10) {
+        out.push(format!("{}: {}", user.last_seen_at(), user));
+    }
+    out.into()
+}
+
+// Board commands
 
 /// List all the boards.
 fn board_lister(
@@ -213,57 +266,6 @@ fn board_write(
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
     format!("Published at {}", post.created_at()).into()
-}
-
-/// Tell the user where they are.
-pub fn state_describe(
-    conn: &mut SqliteConnection,
-    cfg: &BBSConfig,
-    user: &mut User,
-    _args: Vec<&str>,
-) -> Reply {
-    let in_board = match user.in_board {
-        Some(v) => v,
-        None => {
-            return format!("You are {}.", user).into();
-        }
-    };
-    let board = boards::get(conn, in_board).unwrap();
-    vec![
-        format!("You are {} in board #{}: {}.\n", user, in_board, board.name),
-        system_info(cfg),
-    ]
-    .into()
-}
-
-/// Show the most recently active users.
-pub fn user_active(
-    conn: &mut SqliteConnection,
-    _cfg: &BBSConfig,
-    _user: &mut User,
-    _args: Vec<&str>,
-) -> Reply {
-    let mut out = Vec::new();
-    out.push("Active users:\n".to_string());
-    for user in users::recently_active(conn, 10) {
-        out.push(format!("{}: {}", user.last_acted_at(), user));
-    }
-    out.into()
-}
-
-/// Show the most recently seen users.
-pub fn user_seen(
-    conn: &mut SqliteConnection,
-    _cfg: &BBSConfig,
-    _user: &mut User,
-    _args: Vec<&str>,
-) -> Reply {
-    let mut out = Vec::new();
-    out.push("Seen users:\n".to_string());
-    for user in users::recently_seen(conn, 10) {
-        out.push(format!("{}: {}", user.last_seen_at(), user));
-    }
-    out.into()
 }
 
 // Sysop commands
