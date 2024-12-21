@@ -107,11 +107,20 @@ pub fn user_seen(
 
 // Board commands
 
+/// Print a post and information about its author.
+fn post_print(post: &Post, user: &User) -> Vec<String> {
+    vec![
+        format!("From: {}", user),
+        format!("At: {}", post.created_at()),
+        post.body.to_string(),
+    ]
+}
+
 /// List all the boards.
 fn board_lister(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
-    _user: &mut User,
+    user: &mut User,
     _args: Vec<&str>,
 ) -> Reply {
     let all_boards = boards::all(conn);
@@ -121,10 +130,21 @@ fn board_lister(
     let mut out = Vec::new();
     out.push("Boards:\n".to_string());
     for board in boards::all(conn) {
-        out.push(format!(
-            "#{} {}: {}",
-            board.id, board.name, board.description
-        ));
+        if user.in_board.is_some() && user.in_board.unwrap() == board.id {
+            out.push(format!(
+                "* #{} {}: {}",
+                board.id, board.name, board.description
+            ));
+        } else {
+            out.push(format!(
+                "#{} {}: {}",
+                board.id, board.name, board.description
+            ));
+        }
+    }
+    if user.in_board.is_some() {
+        out.push("".to_string());
+        out.push("* You are here.".to_string());
     }
     out.into()
 }
@@ -151,15 +171,6 @@ fn board_enter(
     }
     let _ = users::enter_board(conn, user, num);
     format!("Entering board {}", num).into()
-}
-
-/// Print a post and information about its author.
-fn post_print(post: &Post, user: &User) -> Vec<String> {
-    vec![
-        format!("From: {}", user),
-        format!("At: {}", post.created_at()),
-        post.body.to_string(),
-    ]
 }
 
 /// Get the current message in the board.
