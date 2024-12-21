@@ -5,19 +5,18 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-chrono = "0.4.38"
-clap = { version = "4.5.21", features = ["derive"] }
+chrono = "0.4.39"
+clap = { version = "4.5.23", features = ["derive"] }
 confy = "0.6.1"
-diesel = { version = "2.2.0", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "time"] }
+diesel = { version = "2.2.6", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "time"] }
 log = "0.4.22"
 meshtastic = "0.1.6"
 once_cell = "1.20.2"
-prost = "0.11.9"
+prost = "0.11.9" # Meshtastic uses this version
 regex = "1.11.1"
-rumqttc = "0.24.0"
-serde = { version = "1.0.215", features = ["derive"] }
+serde = { version = "1.0.216", features = ["derive"] }
 simple_logger = "5.0.0"
-tokio = "1.41.1"
+tokio = "1.42.0"
 validator = { version = "0.19", features = ["derive"] }
 xdg = "2.5.2"
 
