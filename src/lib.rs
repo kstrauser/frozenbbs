@@ -84,3 +84,11 @@ pub fn system_info(cfg: &BBSConfig) -> String {
         &env!("VERGEN_BUILD_TIMESTAMP").to_string()[..22],
     )
 }
+
+/// Add an empty line to the output.
+#[macro_export]
+macro_rules! linefeed {
+    ($x:expr) => {
+        $x.push("".to_string());
+    };
+}
