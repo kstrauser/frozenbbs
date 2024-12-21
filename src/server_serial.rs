@@ -13,9 +13,8 @@ use meshtastic::{
     packet::{PacketDestination, PacketRouter},
     protobufs::{from_radio, mesh_packet, FromRadio, MeshPacket, PortNum, User},
     types::NodeId,
-    utils,
+    utils, Message,
 };
-use prost::Message;
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
