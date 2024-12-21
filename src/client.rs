@@ -1,6 +1,6 @@
 use crate::commands::{command_structure, help_menu, help_toplevel, Menus, Reply};
 use crate::db::users;
-use crate::{system_info, BBSConfig};
+use crate::{linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
@@ -21,9 +21,9 @@ pub fn dispatch(
     } else {
         log::info!("Command from new {}: '{}'", user, cmdline);
         out.push(format!("Welcome to {}!", cfg.bbs_name));
-        out.push("".to_string());
+        linefeed!(out);
         out.push(system_info(cfg));
-        out.push("".to_string());
+        linefeed!(out);
         out.extend(help_toplevel(cfg, &user, menus));
         return out.into();
     }
@@ -44,7 +44,8 @@ pub fn dispatch(
         }
         let mut out = Vec::new();
         if !help_suffix.is_empty() {
-            out.push(format!("{}\n", NO_SUCH_HELP));
+            out.push(NO_SUCH_HELP.to_string());
+            linefeed!(out);
         }
         out.extend(help_toplevel(cfg, &user, menus));
         return out.into();
@@ -72,7 +73,8 @@ pub fn dispatch(
             }
         }
     }
-    out.push("That's not an available command here.\n".to_string());
+    out.push("That's not an available command here.".to_string());
+    linefeed!(out);
     out.extend(help_toplevel(cfg, &user, menus));
     out.into()
 }

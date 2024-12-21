@@ -1,5 +1,5 @@
 use crate::db::{board_states, boards, posts, users, Post, User};
-use crate::{system_info, BBSConfig};
+use crate::{linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 
@@ -64,10 +64,10 @@ pub fn state_describe(
     let mut out = vec![format!("Hi, {}!", user)];
     if let Some(user_board) = user.in_board {
         let board = boards::get(conn, user_board).unwrap();
-        out.push("".to_string());
-        out.push(format!("You are in board {}.", board));
+        linefeed!(out);
+        out.push(format!("You are in board {}", board));
     }
-    out.push("".to_string());
+    linefeed!(out);
     out.push(system_info(cfg));
     out.into()
 }
@@ -80,7 +80,8 @@ pub fn user_active(
     _args: Vec<&str>,
 ) -> Reply {
     let mut out = Vec::new();
-    out.push("Active users:\n".to_string());
+    out.push("Active users:".to_string());
+    linefeed!(out);
     for user in users::recently_active(conn, 10) {
         out.push(format!("{}: {}", user.last_acted_at(), user));
     }
@@ -95,7 +96,8 @@ pub fn user_seen(
     _args: Vec<&str>,
 ) -> Reply {
     let mut out = Vec::new();
-    out.push("Seen users:\n".to_string());
+    out.push("Seen users:".to_string());
+    linefeed!(out);
     for user in users::recently_seen(conn, 10) {
         out.push(format!("{}: {}", user.last_seen_at(), user));
     }
@@ -125,7 +127,8 @@ fn board_lister(
         return NO_BOARDS.into();
     }
     let mut out = Vec::new();
-    out.push("Boards:\n".to_string());
+    out.push("Boards:".to_string());
+    linefeed!(out);
     for board in boards::all(conn) {
         if user.in_board.is_some() && user.in_board.unwrap() == board.id {
             out.push(format!("* {}", board));
@@ -134,7 +137,7 @@ fn board_lister(
         }
     }
     if user.in_board.is_some() {
-        out.push("".to_string());
+        linefeed!(out);
         out.push("* You are here.".to_string());
     }
     out.into()
@@ -290,7 +293,8 @@ pub fn sysop_advertise(
 /// Show the user how to get help on all menus available to them right now.
 pub fn help_toplevel(cfg: &BBSConfig, user: &User, menus: &Menus) -> Vec<String> {
     let mut out = Vec::new();
-    out.push("Help commands:\n".to_string());
+    out.push("Help commands:".to_string());
+    linefeed!(out);
     for menu in menus {
         if menu.any_available(cfg, user) {
             out.push(format!("H{} : {} menu", menu.help_suffix, menu.name));
@@ -302,7 +306,8 @@ pub fn help_toplevel(cfg: &BBSConfig, user: &User, menus: &Menus) -> Vec<String>
 
 /// Show the user the commands available to them on this menu.
 pub fn help_menu(cfg: &BBSConfig, user: &User, menu: &Menu) -> Vec<String> {
-    let mut out = vec![format!("Help for {} commands\n", menu.name)];
+    let mut out = vec![format!("Help for {} commands", menu.name)];
+    linefeed!(out);
     for command in &menu.commands {
         if (command.available)(cfg, user) {
             out.push(format!("{} : {}", command.arg, command.help));
