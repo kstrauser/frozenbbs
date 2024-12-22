@@ -65,7 +65,7 @@ pub fn state_describe(
     if let Some(user_board) = user.in_board {
         let board = boards::get(conn, user_board).unwrap();
         linefeed!(out);
-        out.push(format!("You are in board {}", board));
+        out.push(format!("You are in board {board}"));
     }
     linefeed!(out);
     out.push(system_info(cfg));
@@ -132,7 +132,7 @@ fn board_lister(
     linefeed!(out);
     for board in boards::all(conn) {
         if user.in_board.is_some() && user.in_board.unwrap() == board.id {
-            out.push(format!("* {}", board));
+            out.push(format!("* {board}"));
         } else {
             out.push(board.to_string());
         }
@@ -162,10 +162,10 @@ fn board_enter(
         return NO_BOARDS.into();
     }
     if num < 1 || num > count {
-        return format!("Board number must be between 1 and {}", count).into();
+        return format!("Board number must be between 1 and {count}").into();
     }
     let _ = users::enter_board(conn, user, num);
-    format!("Entering board {}", num).into()
+    format!("Entering board {num}").into()
 }
 
 /// Get the current message in the board.
@@ -389,7 +389,7 @@ pub struct Command {
 
 /// Build a Regex in our common fashion.
 fn make_pattern(pattern: &str) -> Regex {
-    RegexBuilder::new(format!("^{}$", pattern).as_str())
+    RegexBuilder::new(format!("^{pattern}$").as_str())
         .case_insensitive(true)
         .build()
         .unwrap()

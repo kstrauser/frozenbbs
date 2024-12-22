@@ -16,7 +16,7 @@ pub type Result<T> = std::result::Result<T, ValidationErrors>;
 pub fn establish_connection(cfg: &BBSConfig) -> SqliteConnection {
     let database_url = &cfg.db_path;
     let mut connection = SqliteConnection::establish(database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
+        .unwrap_or_else(|_| panic!("Error connecting to {database_url}"));
     connection
         .batch_execute("PRAGMA foreign_keys = ON")
         .unwrap();
