@@ -107,7 +107,7 @@ impl User {
         if let Some(acted) = self.last_acted_at_us {
             formatted_useconds(acted)
         } else {
-            "".to_string()
+            String::new()
         }
     }
     pub fn last_seen_at(&self) -> String {

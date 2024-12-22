@@ -61,7 +61,7 @@ pub fn paginate(lines: Vec<String>, max_length: usize) -> Vec<String> {
         return vec![one_page];
     }
 
-    let mut buf = "".to_string();
+    let mut buf = String::new();
     let mut pages = Vec::new();
 
     let page_length = max_length - footer(9, 9).len();

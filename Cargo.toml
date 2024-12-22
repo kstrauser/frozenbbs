@@ -24,4 +24,5 @@ vergen-git2 = { version = "1.0.2", features = ["build"] }
 
 [lints.clippy]
 manual_let_else = "warn"
+manual_string_new = "warn"
 semicolon_if_nothing_returned = "warn"

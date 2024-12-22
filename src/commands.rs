@@ -111,7 +111,7 @@ fn post_print(post: &Post, user: &User) -> Vec<String> {
     vec![
         format!("From: {}", user),
         format!("At: {}", post.created_at()),
-        "".to_string(),
+        String::new(),
         post.body.to_string(),
     ]
 }
@@ -290,7 +290,7 @@ pub fn sysop_advertise(
     _args: Vec<&str>,
 ) -> Reply {
     Reply {
-        out: vec![cfg.ad_text.clone(), "".to_string(), system_info(cfg)],
+        out: vec![cfg.ad_text.clone(), String::new(), system_info(cfg)],
         destination: ReplyDestination::Broadcast,
     }
 }
