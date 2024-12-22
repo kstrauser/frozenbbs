@@ -80,7 +80,7 @@ pub fn board_add(conn: &mut SqliteConnection, name: &str, description: &str) {
     println!("Created board #{}, '{}'", board.id, board.name);
 }
 
-/// Print the path to the SQLite database file.
+/// Print the path to the `SQLite` database file.
 pub fn db_path(cfg: BBSConfig) {
     println!("{}", cfg.db_path);
 }
