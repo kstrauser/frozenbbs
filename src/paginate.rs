@@ -11,7 +11,7 @@ fn footer(m: usize, n: usize) -> String {
 /// Second, our pages are only ever going to be 200 bytes long at most, so this can't ever grown to
 /// be O(1_000_000_000**2) or anything like that. I'd vastly rather optimize for simplicity than
 /// sophistication here.
-fn shrink(text: String) -> String {
+fn shrink(text: &str) -> String {
     // Pages never have leading whitespace.
     let mut text = text.trim_start().to_string();
     // Lines within a page may have a blank line between them. 2 newlines in a row are fine.
@@ -33,11 +33,11 @@ fn shrink(text: String) -> String {
 
 /// If some smartass makes a post that's longer than the maximum page size, carelessly slice that
 /// sucker up into ugly chunks.
-pub fn splitted(text: String, max_length: usize) -> Vec<String> {
+pub fn splitted(text: &str, max_length: usize) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     // Text will already be shrunk and trimmed before it gets here, so don't bother with doing it
     // again.
-    let mut text = text.clone();
+    let mut text = text;
     while !text.is_empty() {
         if text.len() <= max_length {
             // If we're lucky enough to coincidentally split between words, trim the space from
@@ -46,7 +46,7 @@ pub fn splitted(text: String, max_length: usize) -> Vec<String> {
             break;
         }
         out.push(text[0..max_length].trim_end().to_string());
-        text = text[max_length..].trim_start().to_string();
+        text = text[max_length..].trim_start();
     }
     out
 }
@@ -67,18 +67,18 @@ pub fn paginate(lines: Vec<String>, max_length: usize) -> Vec<String> {
 
     for line in lines {
         if buf.is_empty() {
-            buf = line.clone();
+            buf.clone_from(&line);
             continue;
         }
         // Before we consider creating a new page, ensure the current one isn't stuffed or tailed
         // with long runs of whitespace.
-        buf = shrink(buf);
+        buf = shrink(&buf);
         if buf.len() + 1 + line.len() > page_length {
             // Pages never need to be trailed by whitespace.
             buf = buf.trim_end().to_string();
-            pages.extend(splitted(buf, max_length));
+            pages.extend(splitted(&buf, max_length));
             // Start a new page with the incoming line.
-            buf = line.clone();
+            buf.clone_from(&line);
             continue;
         }
         // Add a new line to the current page.
@@ -87,9 +87,9 @@ pub fn paginate(lines: Vec<String>, max_length: usize) -> Vec<String> {
     }
 
     // Does the remaining buffer have anything other than whitespace? Add it as another page.
-    buf = shrink(buf).trim_end().to_string();
+    buf = shrink(&buf).trim_end().to_string();
     if !buf.is_empty() {
-        pages.extend(splitted(buf, max_length));
+        pages.extend(splitted(&buf, max_length));
     }
 
     let page_count = pages.len();
@@ -147,14 +147,14 @@ mod tests {
     #[test]
     fn shrunk() {
         let text = "\n\n\n\nfoo\n\n\n\nbar    baz\n\n\n\n".to_string();
-        let trimmed = shrink(text);
+        let trimmed = shrink(&text);
         assert_eq!(trimmed, "foo\n\nbar baz\n\n".to_string());
     }
 
     #[test]
     fn shard() {
         let text = "012345678901234567890123456".to_string();
-        let shards = splitted(text, 10);
+        let shards = splitted(&text, 10);
         assert_eq!(
             shards,
             vec![
@@ -162,6 +162,6 @@ mod tests {
                 "0123456789".to_string(),
                 "0123456".to_string()
             ]
-        )
+        );
     }
 }

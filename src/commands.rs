@@ -145,6 +145,7 @@ fn board_lister(
 }
 
 /// Enter a board.
+#[allow(clippy::needless_pass_by_value)]
 fn board_enter(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
@@ -267,6 +268,7 @@ fn board_quick(
 }
 
 /// Add a new post to the board.
+#[allow(clippy::needless_pass_by_value)]
 fn board_write(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
