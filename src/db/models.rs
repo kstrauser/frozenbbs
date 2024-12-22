@@ -11,8 +11,8 @@ static RE_NODE_ID: Lazy<Regex> = Lazy::new(|| Regex::new(r"^![0-9a-f]{8}$").unwr
 // This seems like a reasonable range to clamp timestamps to. Because we're dealing with
 // microseconds, it's good to enforce a plausible range so that things will blow up if we
 // inadvertently try to use seconds, milliseconds, or nanoseconds somewhere.
-const EARLY_2024: i64 = 1704096000000000;
-const EARLY_2200: i64 = 7258147200000000;
+const EARLY_2024: i64 = 1_704_096_000_000_000;
+const EARLY_2200: i64 = 7_258_147_200_000_000;
 
 #[derive(Debug, Queryable, Selectable)]
 #[diesel(table_name = crate::db::schema::boards)]

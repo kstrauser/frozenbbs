@@ -155,7 +155,7 @@ fn handle_packet(
             &user.id,
             &user.short_name,
             &user.long_name,
-            meshpacket.rx_time as i64 * 1_000_000,
+            i64::from(meshpacket.rx_time) * 1_000_000,
         ) {
             if seen {
                 log::info!("Observed at {}: {}", meshpacket.rx_time, bbs_user);
