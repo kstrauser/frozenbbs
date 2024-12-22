@@ -200,10 +200,10 @@ async fn main() {
     match &cli.command {
         Some(Subsystems::Client { client_command }) => match client_command {
             Some(ClientCommands::Terminal { node_id }) => {
-                client::terminal(conn, &cfg, &default_or(node_id))
+                client::terminal(conn, &cfg, &default_or(node_id));
             }
             Some(ClientCommands::Command { node_id, command }) => {
-                client::command(conn, &cfg, &default_or(node_id), command)
+                client::command(conn, &cfg, &default_or(node_id), command);
             }
             None => {}
         },
@@ -211,7 +211,7 @@ async fn main() {
         Some(Subsystems::Board { board_command }) => match board_command {
             Some(BoardCommands::List {}) => admin::board_list(conn),
             Some(BoardCommands::Add { name, description }) => {
-                admin::board_add(conn, name, description)
+                admin::board_add(conn, name, description);
             }
             None => {}
         },
@@ -233,10 +233,10 @@ async fn main() {
                 long_name,
             }) => admin::user_observe(conn, &canonical_node_id(node_id), short_name, long_name),
             Some(UserCommands::Ban { node_id }) => {
-                admin::user_ban(conn, &canonical_node_id(node_id))
+                admin::user_ban(conn, &canonical_node_id(node_id));
             }
             Some(UserCommands::Unban { node_id }) => {
-                admin::user_unban(conn, &canonical_node_id(node_id))
+                admin::user_unban(conn, &canonical_node_id(node_id));
             }
             None => {}
         },
