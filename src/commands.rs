@@ -151,11 +151,8 @@ fn board_enter(
     user: &mut User,
     args: Vec<&str>,
 ) -> Reply {
-    let num = match args[0].parse::<i32>() {
-        Ok(num) => num,
-        Err(_) => {
-            return NOT_VALID.into();
-        }
+    let Ok(num) = args[0].parse::<i32>() else {
+        return NOT_VALID.into();
     };
     let count = boards::count(conn);
     if count == 0 {
@@ -175,11 +172,8 @@ fn board_current(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Reply {
-    let in_board = match user.in_board {
-        Some(v) => v,
-        None => {
-            return NOT_IN_BOARD.into();
-        }
+    let Some(in_board) = user.in_board else {
+        return NOT_IN_BOARD.into();
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::current(conn, in_board, last_seen) {
@@ -196,11 +190,8 @@ fn board_previous(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Reply {
-    let in_board = match user.in_board {
-        Some(v) => v,
-        None => {
-            return NOT_IN_BOARD.into();
-        }
+    let Some(in_board) = user.in_board else {
+        return NOT_IN_BOARD.into();
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::before(conn, in_board, last_seen) {
@@ -218,11 +209,8 @@ fn board_next(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Reply {
-    let in_board = match user.in_board {
-        Some(v) => v,
-        None => {
-            return NOT_IN_BOARD.into();
-        }
+    let Some(in_board) = user.in_board else {
+        return NOT_IN_BOARD.into();
     };
     let last_seen = board_states::get(conn, user.id, in_board);
     if let Ok((post, post_user)) = posts::after(conn, in_board, last_seen) {
@@ -285,11 +273,8 @@ fn board_write(
     user: &mut User,
     args: Vec<&str>,
 ) -> Reply {
-    let in_board = match user.in_board {
-        Some(v) => v,
-        None => {
-            return NOT_IN_BOARD.into();
-        }
+    let Some(in_board) = user.in_board else {
+        return NOT_IN_BOARD.into();
     };
     let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
     format!("Published at {}", post.created_at()).into()

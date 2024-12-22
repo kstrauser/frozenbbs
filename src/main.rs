@@ -175,8 +175,8 @@ async fn main() {
         .unwrap();
 
     // Process commands to show configuration information before connecting to the database.
-    match &cli.command {
-        Some(Subsystems::Config { config_command }) => match config_command {
+    if let Some(Subsystems::Config { config_command }) = &cli.command {
+        match config_command {
             Some(ConfigCommands::ConfigPath {}) => {
                 return println!(
                     "{}",
@@ -187,8 +187,7 @@ async fn main() {
             }
             Some(ConfigCommands::DbPath {}) => return println!("{}", &cfg.db_path),
             None => {}
-        },
-        _ => {}
+        }
     };
 
     let conn = &mut db::establish_connection(&cfg);
