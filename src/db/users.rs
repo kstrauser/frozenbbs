@@ -4,9 +4,9 @@ use super::{now_as_useconds, Result};
 use diesel::prelude::*;
 use validator::Validate as _;
 
-/// Record a user that we passively saw in a NodeInfo packet.
+/// Record a user that we passively saw in a `NodeInfo` packet.
 ///
-/// Updates their last_seen timestamps. Returns the user object, and whether they were already in
+/// Updates their `last_seen` timestamps. Returns the user object, and whether they were already in
 /// the database.
 ///
 /// I'm resisting the urge to refactor this and `record` to use the same underlying code. They're
@@ -71,7 +71,7 @@ pub fn observe(
 
 /// Get information about the user executing a command.
 ///
-/// Updates their last_acted and last_seen timestamps. Returns the user object, and whether
+/// Updates their `last_acted` and `last_seen` timestamps. Returns the user object, and whether
 /// they had already interacted with the BBS.
 pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)> {
     let now = now_as_useconds();
