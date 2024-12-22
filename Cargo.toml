@@ -23,4 +23,5 @@ xdg = "2.5.2"
 vergen-git2 = { version = "1.0.2", features = ["build"] }
 
 [lints.clippy]
-manual_let_else = "deny"
+manual_let_else = "warn"
+semicolon_if_nothing_returned = "warn"
