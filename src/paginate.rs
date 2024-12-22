@@ -44,10 +44,9 @@ pub fn splitted(text: String, max_length: usize) -> Vec<String> {
             //them.
             out.push(text.trim_end().to_string());
             break;
-        } else {
-            out.push(text[0..max_length].trim_end().to_string());
-            text = text[max_length..].trim_start().to_string();
         }
+        out.push(text[0..max_length].trim_end().to_string());
+        text = text[max_length..].trim_start().to_string();
     }
     out
 }
