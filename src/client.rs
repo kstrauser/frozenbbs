@@ -52,7 +52,7 @@ pub fn dispatch(
     }
 
     for menu in menus {
-        for command in menu.commands.iter() {
+        for command in &menu.commands {
             if !(command.available)(cfg, &user) {
                 continue;
             }
