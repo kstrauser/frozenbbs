@@ -166,10 +166,12 @@ pub fn recently_active(conn: &mut SqliteConnection, count: i64) -> Vec<User> {
 
 /// Get the number of seen and active users.
 pub fn counts(conn: &mut SqliteConnection) -> (i32, i32) {
+    #[allow(clippy::cast_possible_truncation)] // We'll never have more than 4 billion users.
     let seen_users = dsl::users
         .count()
         .get_result::<i64>(conn)
         .expect("Error counting seen users") as i32;
+    #[allow(clippy::cast_possible_truncation)] // We'll never have more than 4 billion users.
     let active_users = dsl::users
         .filter(dsl::last_acted_at_us.is_not_null())
         .count()

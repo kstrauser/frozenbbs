@@ -82,6 +82,7 @@ pub fn before(
 }
 
 /// Get the number of posts
+#[allow(clippy::cast_possible_truncation)] // We'll never have more than 4 billion posts.
 pub fn count(conn: &mut SqliteConnection) -> i32 {
     posts_dsl::posts
         .count()
