@@ -1,5 +1,5 @@
 bbscmd := "target/debug/frozenbbs"
-dbfile := "cargo run --bin frozenbbs-db-path"
+dbfile := "cargo run config db-path"
 
 # Install dev requirements
 setup:
