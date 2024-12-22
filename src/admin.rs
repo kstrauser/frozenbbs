@@ -48,12 +48,12 @@ pub fn user_observe(conn: &mut SqliteConnection, node_id: &str, short_name: &str
 
 pub fn user_ban(conn: &mut SqliteConnection, node_id: &str) {
     let user = users::ban(conn, node_id).unwrap();
-    println!("Banned user {}", user);
+    println!("Banned user {user}");
 }
 
 pub fn user_unban(conn: &mut SqliteConnection, node_id: &str) {
     let user = users::unban(conn, node_id).unwrap();
-    println!("Unbanned user {}", user);
+    println!("Unbanned user {user}");
 }
 
 pub fn board_list(conn: &mut SqliteConnection) {
@@ -91,7 +91,7 @@ pub fn post_read(conn: &mut SqliteConnection, board_id: i32) {
 
     let post_info = posts::in_board(conn, board_id);
     if post_info.is_empty() {
-        println!("There are no posts in board #{}", board_id);
+        println!("There are no posts in board #{board_id}");
         return;
     }
 

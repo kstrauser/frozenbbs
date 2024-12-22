@@ -24,7 +24,7 @@ pub fn hex_id_to_num(node_id: &str) -> u32 {
 
 /// Convert a u32 node ID to its canonical !abcdef12 format.
 pub fn num_id_to_hex(node_num: u32) -> String {
-    format!("!{:x}", node_num)
+    format!("!{node_num:x}")
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,7 +57,7 @@ Edit it before doing anything else!
         let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
         let data_home = xdg_dirs.get_data_home();
         let data_home = Path::new(&data_home);
-        let db_file = format!("{}.db", BBS_TAG);
+        let db_file = format!("{BBS_TAG}.db");
         let db_filename = Path::new(&db_file);
         let db_path = data_home.join(db_filename).to_str().unwrap().to_owned();
 

@@ -1,7 +1,7 @@
 pub const MAX_LENGTH: usize = 200;
 
 fn footer(m: usize, n: usize) -> String {
-    format!("\n\nPage {}/{}", m, n)
+    format!("\n\nPage {m}/{n}")
 }
 
 /// Remove excessive internal and trailing newlines from a string.
