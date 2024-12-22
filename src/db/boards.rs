@@ -35,6 +35,7 @@ pub fn get(conn: &mut SqliteConnection, board_id: i32) -> QueryResult<Board> {
 }
 
 /// Get the number of configured boards
+#[allow(clippy::cast_possible_truncation)] // We'll never have more than 4 billion boards.
 pub fn count(conn: &mut SqliteConnection) -> i32 {
     dsl::boards
         .count()

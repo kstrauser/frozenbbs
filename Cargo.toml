@@ -25,6 +25,7 @@ vergen-git2 = { version = "1.0.2", features = ["build"] }
 [lints.clippy]
 assigning_clones = "warn"
 cast_lossless = "warn"
+cast_possible_truncation = "warn"
 explicit_iter_loop = "warn"
 manual_let_else = "warn"
 manual_string_new = "warn"
