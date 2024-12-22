@@ -25,17 +25,17 @@ enum Subsystems {
     },
     /// Server commands
     Server {},
+    /// Config commands
+    #[command(arg_required_else_help = true)]
+    Config {
+        #[command(subcommand)]
+        config_command: Option<ConfigCommands>,
+    },
     /// Board commands
     #[command(arg_required_else_help = true)]
     Board {
         #[command(subcommand)]
         board_command: Option<BoardCommands>,
-    },
-    /// Database commands
-    #[command(arg_required_else_help = true)]
-    Db {
-        #[command(subcommand)]
-        db_command: Option<DbCommands>,
     },
     /// Post commands
     #[command(arg_required_else_help = true)]
@@ -71,6 +71,14 @@ enum ClientCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum ConfigCommands {
+    /// Show the path to the config file.
+    ConfigPath {},
+    /// Show the path to the database file.
+    DbPath {},
+}
+
+#[derive(Debug, Subcommand)]
 enum BoardCommands {
     /// List all boards.
     List {},
@@ -84,12 +92,6 @@ enum BoardCommands {
         #[arg(short, long)]
         description: String,
     },
-}
-
-#[derive(Debug, Subcommand)]
-enum DbCommands {
-    /// Show the path to the database file.
-    Path {},
 }
 
 #[derive(Debug, Subcommand)]
@@ -171,6 +173,24 @@ async fn main() {
         .with_local_timestamps()
         .init()
         .unwrap();
+
+    // Process commands to show configuration information before connecting to the database.
+    match &cli.command {
+        Some(Subsystems::Config { config_command }) => match config_command {
+            Some(ConfigCommands::ConfigPath {}) => {
+                return println!(
+                    "{}",
+                    confy::get_configuration_file_path(BBS_TAG, "config")
+                        .unwrap()
+                        .display()
+                )
+            }
+            Some(ConfigCommands::DbPath {}) => return println!("{}", &cfg.db_path),
+            None => {}
+        },
+        _ => {}
+    };
+
     let conn = &mut db::establish_connection(&cfg);
 
     // Use the passed-in node ID, if given, or else the node's own ID.
@@ -196,10 +216,7 @@ async fn main() {
             }
             None => {}
         },
-        Some(Subsystems::Db { db_command }) => match db_command {
-            Some(DbCommands::Path {}) => admin::db_path(cfg),
-            None => {}
-        },
+        Some(Subsystems::Config { .. }) => {} // Already handled this arm earlier.
         Some(Subsystems::Post { post_command }) => match post_command {
             Some(PostCommands::Read { board_id }) => admin::post_read(conn, *board_id),
             Some(PostCommands::Add {

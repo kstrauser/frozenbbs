@@ -31,7 +31,7 @@ pub fn num_id_to_hex(node_num: u32) -> String {
 pub struct BBSConfig {
     bbs_name: String,
     pub my_id: String,
-    db_path: String,
+    pub db_path: String,
     serial_device: String,
     sysops: Vec<String>,
     public_channel: u32,
