@@ -127,22 +127,15 @@ fn handle_packet(
     radio_packet: FromRadio,
     my_id: u32,
 ) -> Option<Response> {
-    let payload_variant = match radio_packet.payload_variant {
-        Some(x) => x,
-        _ => return None,
+    let payload_variant = radio_packet.payload_variant?;
+    let from_radio::PayloadVariant::Packet(meshpacket) = payload_variant else {
+        return None;
     };
-    let meshpacket = match payload_variant {
-        from_radio::PayloadVariant::Packet(x) => x,
-        _ => return None,
+    let payload_variant = meshpacket.payload_variant?;
+    let mesh_packet::PayloadVariant::Decoded(decoded) = payload_variant else {
+        return None;
     };
-    let payload_variant = match meshpacket.payload_variant {
-        Some(x) => x,
-        _ => return None,
-    };
-    let decoded = match payload_variant {
-        mesh_packet::PayloadVariant::Decoded(x) => x,
-        _ => return None,
-    };
+
     if decoded.portnum == PortNum::TextMessageApp as i32 && meshpacket.to == my_id {
         let node_id = num_id_to_hex(meshpacket.from);
         let message = std::str::from_utf8(&decoded.payload);
