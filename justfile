@@ -1,5 +1,5 @@
 bbscmd := "target/debug/frozenbbs"
-dbfile := "cargo run -- db path"
+dbfile := "cargo run --bin frozenbbs-db-path"
 
 # Install dev requirements
 setup:
@@ -35,6 +35,7 @@ db_nuke:
 
 # Apply migrations
 db_migrate:
+    mkdir -p $(dirname "`{{ dbfile }}`")
     diesel --database-url "`{{ dbfile }}`" migration run
 
 # Export the database to a text file
