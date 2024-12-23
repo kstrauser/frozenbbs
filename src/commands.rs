@@ -108,12 +108,16 @@ pub fn user_seen(
 
 /// Print a post and information about its author.
 fn post_print(post: &Post, user: &User) -> Vec<String> {
-    vec![
+    let mut out = vec![
         format!("From: {}", user),
         format!("At: {}", post.created_at()),
-        String::new(),
-        post.body.to_string(),
-    ]
+    ];
+    // Split individual lines into separate strings to help the paginator deal with longer chunks.
+    for line in post.body.split("\n") {
+        linefeed!(out);
+        out.push(line.to_string());
+    }
+    out
 }
 
 /// List all the boards.
