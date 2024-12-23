@@ -66,7 +66,7 @@ pub fn observe(
                 ))
             }
         })
-        .unwrap())
+        .expect("we must be able to commit database transactions"))
 }
 
 /// Get information about the user executing a command.
