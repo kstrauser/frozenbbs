@@ -1,6 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{
-    admin, client, config_path, db, hex_id_to_num, load_config, num_id_to_hex, server,
+    admin, client, config_example, config_load, config_path, db, hex_id_to_num, num_id_to_hex,
+    server,
 };
 use log::LevelFilter;
 
@@ -156,7 +157,23 @@ pub fn canonical_node_id(node_id: &str) -> String {
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
-    let cfg = load_config();
+    let cfg = match config_load() {
+        Ok(x) => x,
+        Err(err) => {
+            let config_path = config_path();
+            let config = config_example();
+            eprintln!(
+                "\
+Unable to read the config file at {config_path:?}: {err}
+
+Create a new file with values similar to:
+
+=======
+{config}======="
+            );
+            return;
+        }
+    };
     let cli = Cli::parse();
 
     // Crank up the BBS and Meshtastic logging as verbosity increases.

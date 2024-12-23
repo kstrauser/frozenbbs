@@ -4,7 +4,7 @@ pub mod commands;
 pub mod db;
 pub mod paginate;
 pub mod server;
-use config::Config;
+use config::{Config, ConfigError};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -54,24 +54,24 @@ pub fn default_db_path() -> PathBuf {
         .expect("Unable to create the database file path")
 }
 
-pub fn load_config() -> BBSConfig {
+pub fn config_load() -> Result<BBSConfig, ConfigError> {
     let config_path = config_path();
 
     let config = Config::builder()
         .add_source(config::File::from(config_path.clone()))
-        .build();
-    if let Ok(config) = config {
-        let config: BBSConfig = config.try_deserialize().unwrap();
+        .build()?;
+    let config: BBSConfig = config.try_deserialize()?;
 
-        if (config.serial_device.is_some() && config.tcp_address.is_some())
-            || (config.serial_device.is_none() && config.tcp_address.is_none())
-        {
-            panic!("Exactly one of serial_device or tcp_device must be configured.");
-        }
-
-        return config;
+    if (config.serial_device.is_some() && config.tcp_address.is_some())
+        || (config.serial_device.is_none() && config.tcp_address.is_none())
+    {
+        panic!("Exactly one of serial_device or tcp_device must be configured.");
     }
 
+    Ok(config)
+}
+
+pub fn config_example() -> String {
     let config = BBSConfig {
         bbs_name: "Frozen BBS❅".into(),
         my_id: "!cafeb33d".into(),
@@ -83,19 +83,7 @@ pub fn load_config() -> BBSConfig {
         ad_text: "I'm running a BBS on this node. DM me to get started!".into(),
     };
 
-    let config = toml::to_string(&config).unwrap();
-    let config = config.trim();
-
-    panic!(
-        "\
-Unable to read the config file at {config_path:?}
-
-Create a new file with values like:
-
-=======
-{config}
-======="
-    );
+    toml::to_string(&config).expect("toml should be able to serialize a simple config object")
 }
 
 /// Describe this system.
