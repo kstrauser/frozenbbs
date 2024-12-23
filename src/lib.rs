@@ -33,7 +33,8 @@ pub struct BBSConfig {
     bbs_name: String,
     pub my_id: String,
     pub db_path: String,
-    serial_device: String,
+    serial_device: Option<String>,
+    tcp_address: Option<String>,
     sysops: Vec<String>,
     public_channel: u32,
     ad_text: String,
@@ -60,14 +61,23 @@ pub fn load_config() -> BBSConfig {
         .add_source(config::File::from(config_path.clone()))
         .build();
     if let Ok(config) = config {
-        return config.try_deserialize().unwrap();
+        let config: BBSConfig = config.try_deserialize().unwrap();
+
+        if (config.serial_device.is_some() && config.tcp_address.is_some())
+            || (config.serial_device.is_none() && config.tcp_address.is_none())
+        {
+            panic!("Exactly one of serial_device or tcp_device must be configured.");
+        }
+
+        return config;
     }
 
     let config = BBSConfig {
         bbs_name: "Frozen BBS❅".into(),
         my_id: "!cafeb33d".into(),
         db_path: default_db_path().into_os_string().into_string().unwrap(),
-        serial_device: "/dev/ttyUSB0".into(),
+        serial_device: Some("/dev/ttyUSB0".into()),
+        tcp_address: None,
         sysops: Vec::new(),
         public_channel: 0,
         ad_text: "I'm running a BBS on this node. DM me to get started!".into(),
