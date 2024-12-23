@@ -3,6 +3,7 @@ use crate::{linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 
+const ERROR_POSTING: &str = "Unable to insert this post.";
 const INVALID_BOARD: &str = "That's not a valid board number.";
 const NO_BOARDS: &str = "There are no boards.";
 const NO_MORE_POSTS: &str = "There are no more posts in this board.";
@@ -171,7 +172,7 @@ fn board_enter(
         return format!("Board number must be between 1 and {count}").into();
     }
     let _ = users::enter_board(conn, user, num);
-    let board = boards::get(conn, num).unwrap();
+    let board = boards::get(conn, num).expect("we should find a board that we already know exists");
     format!("Entering board {num}, {}.", board.name).into()
 }
 
@@ -263,7 +264,7 @@ fn board_quick(
             if board_num != in_board {
                 let _ = users::enter_board(conn, user, board_num);
                 // Let the user know they're moving to a different board to read the new post.
-                let board = boards::get(conn, board_num).unwrap();
+                let board = boards::get(conn, board_num).expect("this board should exist");
                 out.push(format!("In {}:", board.name));
                 linefeed!(out);
             }
@@ -287,7 +288,10 @@ fn board_write(
     let Some(in_board) = user.in_board else {
         return NOT_IN_BOARD.into();
     };
-    let post = posts::add(conn, user.id, in_board, args[0]).unwrap();
+    let Ok(post) = posts::add(conn, user.id, in_board, args[0]) else {
+        log::error!("User {user} was unable to post {args:?} to {in_board}.");
+        return ERROR_POSTING.into();
+    };
     format!("Published at {}", post.created_at()).into()
 }
 
