@@ -465,7 +465,7 @@ pub fn command_structure() -> Menus {
             Command {
                 arg: "W msg".to_string(),
                 help: "Write a new message".to_string(),
-                pattern: make_pattern(r"w(.{1,})"),
+                pattern: make_pattern(r"(?s)w(.{1,})"),
                 available: available_in_board,
                 func: board_write,
             },
