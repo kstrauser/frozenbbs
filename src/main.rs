@@ -1,6 +1,6 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{
-    admin, client, config_path, db, hex_id_to_num, load_config, num_id_to_hex, server_serial,
+    admin, client, config_path, db, hex_id_to_num, load_config, num_id_to_hex, server,
 };
 use log::LevelFilter;
 
@@ -203,7 +203,7 @@ async fn main() {
             }
             None => {}
         },
-        Some(Subsystems::Server {}) => server_serial::event_loop(conn, &cfg).await.unwrap(),
+        Some(Subsystems::Server {}) => server::event_loop(conn, &cfg).await.unwrap(),
         Some(Subsystems::Board { board_command }) => match board_command {
             Some(BoardCommands::List {}) => admin::board_list(conn),
             Some(BoardCommands::Add { name, description }) => {

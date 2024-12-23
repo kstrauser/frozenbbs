@@ -3,7 +3,7 @@ pub mod client;
 pub mod commands;
 pub mod db;
 pub mod paginate;
-pub mod server_serial;
+pub mod server;
 use config::Config;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
