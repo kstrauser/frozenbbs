@@ -10,7 +10,7 @@ pub fn get(conn: &mut SqliteConnection, user_id: i32, board_id: i32) -> i64 {
         .filter(dsl::board_id.eq(board_id))
         .first(conn)
         .optional()
-        .expect("Error getting board state");
+        .expect("should always be possible to get board state");
     match state {
         Some(state) => state.last_post_us,
         None => 0,
@@ -44,12 +44,12 @@ pub fn update(conn: &mut SqliteConnection, user_id: i32, board_id: i32, last_pos
             .filter(dsl::board_id.eq(board_id))
             .first(conn)
             .optional()
-            .expect("Error getting board state");
+            .expect("should be able to select for a user's board state");
         if let Some(state) = state {
             diesel::update(table.filter(dsl::id.eq(state.id)))
                 .set(dsl::last_post_us.eq(last_post_us))
                 .execute(conn)
-                .expect("Error updating board state");
+                .expect("should be able to update a user's board state");
         } else {
             let new_state = NewBoardState {
                 user_id,
@@ -59,9 +59,9 @@ pub fn update(conn: &mut SqliteConnection, user_id: i32, board_id: i32, last_pos
             diesel::insert_into(table)
                 .values(&new_state)
                 .execute(conn)
-                .expect("Error inserting board state");
+                .expect("should be able to insert a user's new board state");
         }
         Ok(())
     })
-    .unwrap();
+    .expect("we must be able to commit database transactions");
 }

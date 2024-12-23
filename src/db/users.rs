@@ -95,7 +95,7 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
                         .set((dsl::last_acted_at_us.eq(now), dsl::last_seen_at_us.eq(now)))
                         .returning(User::as_returning())
                         .get_result(conn)
-                        .expect("Error recording existing user"),
+                        .expect("should be able to update a user"),
                     has_acted,
                 ))
             } else {
@@ -105,12 +105,12 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
                         .values(&new_user)
                         .returning(User::as_returning())
                         .get_result(conn)
-                        .expect("Error recording new user"),
+                        .expect("should be able to add new user"),
                     false,
                 ))
             }
         })
-        .unwrap())
+        .expect("we must be able to commit database transactions"))
 }
 
 pub fn all(conn: &mut SqliteConnection) -> Vec<User> {
