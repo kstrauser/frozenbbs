@@ -149,8 +149,13 @@ fn handle_packet(
 
     if decoded.portnum == PortNum::TextMessageApp as i32 && meshpacket.to == my_id {
         let node_id = num_id_to_hex(meshpacket.from);
-        let message = std::str::from_utf8(&decoded.payload);
-        let command = message.unwrap();
+        let command = match std::str::from_utf8(&decoded.payload) {
+            Ok(x) => x,
+            Err(err) => {
+                log::error!("Unable to interpret {:?}: {err}", decoded.payload);
+                return None;
+            }
+        };
         log::debug!("Received command from {}: <{}>", node_id, command);
         let reply = dispatch(conn, cfg, &node_id, menus, command.trim());
         log::debug!("Result: {:?}", &reply.out);
@@ -160,7 +165,13 @@ fn handle_packet(
         });
     }
     if decoded.portnum == PortNum::NodeinfoApp as i32 {
-        let user = User::decode(&decoded.payload[..]).unwrap();
+        let user = match User::decode(&decoded.payload[..]) {
+            Ok(x) => x,
+            Err(err) => {
+                log::error!("Unable to decode the user {:?}: {err}", decoded.payload);
+                return None;
+            }
+        };
         if let Ok((bbs_user, seen)) = users::observe(
             conn,
             &user.id,

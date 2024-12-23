@@ -15,8 +15,9 @@ pub type Result<T> = std::result::Result<T, ValidationErrors>;
 
 pub fn establish_connection(cfg: &BBSConfig) -> SqliteConnection {
     let database_url = &cfg.db_path;
-    let mut connection = SqliteConnection::establish(database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {database_url}"));
+    let mut connection = SqliteConnection::establish(database_url).expect(
+        "{database_url} should be a SQLite database file. Consider running `just migrate`.",
+    );
     connection
         .batch_execute("PRAGMA foreign_keys = ON")
         .expect("should enable strict foreign key support in the database");
