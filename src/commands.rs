@@ -3,12 +3,13 @@ use crate::{linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 
+const INVALID_BOARD: &str = "That's not a valid board number.";
 const NO_BOARDS: &str = "There are no boards.";
 const NO_MORE_POSTS: &str = "There are no more posts in this board.";
 const NO_MORE_UNREAD: &str = "There are no more unread posts in any board.";
 const NO_SUCH_POST: &str = "There is no post here.";
 const NOT_IN_BOARD: &str = "You are not in a board.";
-const NOT_VALID: &str = "Not a valid number!";
+const NOT_VALID: &str = "That's a valid number.";
 
 /// To where shall I respond?
 pub enum ReplyDestination {
@@ -63,7 +64,10 @@ pub fn state_describe(
 ) -> Reply {
     let mut out = vec![format!("Hi, {}!", user)];
     if let Some(user_board) = user.in_board {
-        let board = boards::get(conn, user_board).unwrap();
+        let Ok(board) = boards::get(conn, user_board) else {
+            log::error!("User {user} ended up in an unexpected board {user_board}");
+            return INVALID_BOARD.into();
+        };
         linefeed!(out);
         out.push(format!("You are in board {board}"));
     }
