@@ -79,12 +79,23 @@ pub async fn event_loop(
     let commands = commands::command_structure();
     let stream_api = StreamApi::new();
 
-    let serial_stream =
-        utils::stream::build_serial_stream(cfg.serial_device.clone(), None, None, None)?;
-    let (mut decoded_listener, stream_api) = stream_api.connect(serial_stream).await;
+    let connected_stream_api;
+    let mut decoded_listener;
+
+    if let Some(tcp_address) = &cfg.tcp_address {
+        log::info!("Connecting to {tcp_address}");
+        let stream = utils::stream::build_tcp_stream(tcp_address.clone()).await?;
+        (decoded_listener, connected_stream_api) = stream_api.connect(stream).await;
+    } else if let Some(serial_device) = &cfg.serial_device {
+        log::info!("Connecting to {serial_device}");
+        let stream = utils::stream::build_serial_stream(serial_device.clone(), None, None, None)?;
+        (decoded_listener, connected_stream_api) = stream_api.connect(stream).await;
+    } else {
+        panic!("Exactly one of tcp_address and serial_device must be configured.");
+    }
 
     let config_id = utils::generate_rand_id();
-    let mut stream_api = stream_api.configure(config_id).await?;
+    let mut stream_api = connected_stream_api.configure(config_id).await?;
 
     let my_id = hex_id_to_num(&cfg.my_id);
     let mut router = TestPacketRouter {
