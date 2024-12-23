@@ -17,9 +17,9 @@ pub fn dispatch(
     let mut out = Vec::new();
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if seen {
-        log::info!("Command from {}: '{}'", user, cmdline);
+        log::info!("Command from {user}: '{cmdline}'");
     } else {
-        log::info!("Command from new {}: '{}'", user, cmdline);
+        log::info!("Command from new {user}: '{cmdline}'");
         out.push(format!("Welcome to {}!", cfg.bbs_name));
         linefeed!(out);
         out.push(system_info(cfg));
@@ -28,12 +28,11 @@ pub fn dispatch(
         return out.into();
     }
 
-    let cmdline = cmdline.to_lowercase();
-    let cmdline = cmdline.as_str();
-
     // Special handling for help requests
-    if cmdline.starts_with("h") {
-        let help_suffix = cmdline.strip_prefix("h").unwrap();
+    let help_cmdline = cmdline.to_lowercase();
+    let help_cmdline = help_cmdline.as_str();
+    if help_cmdline.starts_with("h") {
+        let help_suffix = help_cmdline.strip_prefix("h").unwrap();
         for menu in menus {
             if menu.help_suffix.to_lowercase() == help_suffix {
                 if menu.any_available(cfg, &user) {
