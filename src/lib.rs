@@ -4,8 +4,9 @@ pub mod commands;
 pub mod db;
 pub mod paginate;
 pub mod server_serial;
+use config::Config;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::PathBuf;
 
 pub const BBS_TAG: &str = "frozenbbs";
 
@@ -38,39 +39,53 @@ pub struct BBSConfig {
     ad_text: String,
 }
 
-impl ::std::default::Default for BBSConfig {
-    fn default() -> Self {
-        eprintln!(
-            "\
-NOTICE!
+pub fn config_path() -> PathBuf {
+    let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
+    xdg_dirs
+        .place_config_file("config.toml")
+        .expect("Unable to create the config path")
+}
 
-Creating a new config file at \"{}\".
+pub fn default_db_path() -> PathBuf {
+    let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
+    xdg_dirs
+        .place_data_file(format!("{BBS_TAG}.db"))
+        .expect("Unable to create the database file path")
+}
 
-Edit it before doing anything else!
+pub fn load_config() -> BBSConfig {
+    let config_path = config_path();
 
-===================================
-",
-            confy::get_configuration_file_path(BBS_TAG, "config")
-                .unwrap()
-                .display()
-        );
-        let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
-        let data_home = xdg_dirs.get_data_home();
-        let data_home = Path::new(&data_home);
-        let db_file = format!("{BBS_TAG}.db");
-        let db_filename = Path::new(&db_file);
-        let db_path = data_home.join(db_filename).to_str().unwrap().to_owned();
-
-        Self {
-            bbs_name: "Frozen BBS❅".into(),
-            my_id: "!cafeb33d".into(),
-            db_path,
-            serial_device: "/dev/ttyUSB0".into(),
-            sysops: Vec::new(),
-            public_channel: 0,
-            ad_text: "I'm running a BBS on this node. DM me to get started!".into(),
-        }
+    let config = Config::builder()
+        .add_source(config::File::from(config_path.clone()))
+        .build();
+    if let Ok(config) = config {
+        return config.try_deserialize().unwrap();
     }
+
+    let config = BBSConfig {
+        bbs_name: "Frozen BBS❅".into(),
+        my_id: "!cafeb33d".into(),
+        db_path: default_db_path().into_os_string().into_string().unwrap(),
+        serial_device: "/dev/ttyUSB0".into(),
+        sysops: Vec::new(),
+        public_channel: 0,
+        ad_text: "I'm running a BBS on this node. DM me to get started!".into(),
+    };
+
+    let config = toml::to_string(&config).unwrap();
+    let config = config.trim();
+
+    panic!(
+        "\
+Unable to read the config file at {config_path:?}
+
+Create a new file with values like:
+
+=======
+{config}
+======="
+    );
 }
 
 /// Describe this system.

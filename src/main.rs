@@ -1,6 +1,6 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{
-    admin, client, db, hex_id_to_num, num_id_to_hex, server_serial, BBSConfig, BBS_TAG,
+    admin, client, config_path, db, hex_id_to_num, load_config, num_id_to_hex, server_serial,
 };
 use log::LevelFilter;
 
@@ -156,8 +156,9 @@ pub fn canonical_node_id(node_id: &str) -> String {
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
-    let cfg: BBSConfig = confy::load(BBS_TAG, "config").unwrap();
+    let cfg = load_config();
     let cli = Cli::parse();
+
     // Crank up the BBS and Meshtastic logging as verbosity increases.
     let (bbs_level, radio_level) = match cli.verbose {
         0 => (LevelFilter::Warn, LevelFilter::Off),
@@ -178,12 +179,7 @@ async fn main() {
     if let Some(Subsystems::Config { config_command }) = &cli.command {
         match config_command {
             Some(ConfigCommands::ConfigPath {}) => {
-                return println!(
-                    "{}",
-                    confy::get_configuration_file_path(BBS_TAG, "config")
-                        .unwrap()
-                        .display()
-                )
+                return println!("{}", config_path().into_os_string().into_string().unwrap())
             }
             Some(ConfigCommands::DbPath {}) => return println!("{}", &cfg.db_path),
             None => {}
