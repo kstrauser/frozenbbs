@@ -59,7 +59,7 @@ pub fn dispatch(
                 // Collect all of the matched groups in the pattern into a vector of strs
                 let args = captures
                     .iter()
-                    .skip(1)
+                    .skip(1) // The first item is the command
                     .flatten()
                     .map(|x| x.as_str().trim())
                     .collect();
