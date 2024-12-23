@@ -163,7 +163,8 @@ fn board_enter(
         return format!("Board number must be between 1 and {count}").into();
     }
     let _ = users::enter_board(conn, user, num);
-    format!("Entering board {num}").into()
+    let board = boards::get(conn, num).unwrap();
+    format!("Entering board {num}, {}.", board.name).into()
 }
 
 /// Get the current message in the board.
