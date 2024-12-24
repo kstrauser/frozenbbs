@@ -228,14 +228,9 @@ fn observe(
         i64::from(rx_time) * 1_000_000,
     ) {
         if seen {
-            log::info!("Observed portnum {} at {}: {}", label, rx_time, bbs_user);
+            log::info!("Observed {} at {}: {}", label, rx_time, bbs_user);
         } else {
-            log::info!(
-                "Observed portnum {} new at {}: {}",
-                label,
-                rx_time,
-                bbs_user
-            );
+            log::info!("Observed {} new at {}: {}", label, rx_time, bbs_user);
         }
     }
 }
