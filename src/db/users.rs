@@ -4,6 +4,16 @@ use super::{now_as_useconds, Result};
 use diesel::prelude::*;
 use validator::Validate as _;
 
+const UNKNOWN: &str = "????";
+
+// Returned the trimmed inside of an option value if it's given.
+fn option_trimmed(value: Option<&str>) -> Option<&str> {
+    match value {
+        Some(x) => Some(x.trim()),
+        None => None,
+    }
+}
+
 /// Record a user that we passively saw in a `NodeInfo` packet.
 ///
 /// Updates their `last_seen` timestamps. Returns the user object, and whether they were already in
@@ -15,8 +25,8 @@ use validator::Validate as _;
 pub fn observe(
     conn: &mut SqliteConnection,
     node_id: &str,
-    short_name: &str,
-    long_name: &str,
+    short_name: Option<&str>,
+    long_name: Option<&str>,
     last_seen_at_us: i64,
 ) -> Result<(User, bool)> {
     // Don't accept timestamps in the future.
@@ -27,13 +37,16 @@ pub fn observe(
         now
     };
 
+    let short_name = option_trimmed(short_name);
+    let long_name = option_trimmed(long_name);
+
     // It's kinda wasteful to create both of these here and only use one of them, but it's more of
     // a pain in the neck to put this inside the transaction block and deal with the error types
     // there. So be it. It's not like anything here's particularly expensive.
     let new_user = UserNew {
         node_id: node_id.trim(),
-        short_name: short_name.trim(),
-        long_name: long_name.trim(),
+        short_name: short_name.unwrap_or(UNKNOWN),
+        long_name: long_name.unwrap_or(UNKNOWN),
         created_at_us: &timestamp,
         last_seen_at_us: &timestamp,
         last_acted_at_us: None,
@@ -41,8 +54,8 @@ pub fn observe(
     new_user.validate()?;
 
     let update_user = UserUpdate {
-        short_name: Some(short_name.trim()),
-        long_name: Some(long_name.trim()),
+        short_name,
+        long_name,
         last_seen_at_us: &now,
         last_acted_at_us: None,
     };
@@ -85,8 +98,8 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
 
     let new_user = UserNew {
         node_id: node_id.trim(),
-        short_name: "????",
-        long_name: "????",
+        short_name: UNKNOWN,
+        long_name: UNKNOWN,
         created_at_us: &now,
         last_seen_at_us: &now,
         last_acted_at_us: Some(&now),

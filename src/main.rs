@@ -129,10 +129,10 @@ enum UserCommands {
         node_id: String,
         /// User's 4-byte short name.
         #[arg(short, long)]
-        short_name: String,
+        short_name: Option<String>,
         /// User's long name.
         #[arg(short, long)]
-        long_name: String,
+        long_name: Option<String>,
     },
     /// Set the user's jackass bit.
     Ban {
@@ -244,7 +244,12 @@ Create a new file with values similar to:
                 node_id,
                 short_name,
                 long_name,
-            }) => admin::user_observe(conn, &canonical_node_id(node_id), short_name, long_name),
+            }) => admin::user_observe(
+                conn,
+                &canonical_node_id(node_id),
+                short_name.as_deref(),
+                long_name.as_deref(),
+            ),
             Some(UserCommands::Ban { node_id }) => {
                 admin::user_ban(conn, &canonical_node_id(node_id));
             }
