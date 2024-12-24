@@ -117,7 +117,7 @@ impl User {
 
 #[derive(Insertable, Validate)]
 #[diesel(table_name = users)]
-pub struct NewUser<'a> {
+pub struct UserNew<'a> {
     #[validate(regex(path = *RE_NODE_ID))]
     pub node_id: &'a str,
     #[validate(length(min = 1, max = 4))]
@@ -126,6 +126,19 @@ pub struct NewUser<'a> {
     pub long_name: &'a str,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub created_at_us: &'a i64,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub last_seen_at_us: &'a i64,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub last_acted_at_us: Option<&'a i64>,
+}
+
+#[derive(AsChangeset, Insertable, Validate)]
+#[diesel(table_name = users)]
+pub struct UserUpdate<'a> {
+    #[validate(length(min = 1, max = 4))]
+    pub short_name: Option<&'a str>,
+    #[validate(length(min = 1, max = 40))]
+    pub long_name: Option<&'a str>,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_seen_at_us: &'a i64,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
