@@ -389,7 +389,7 @@ pub struct Command {
 
 /// Build a Regex in our common fashion.
 fn make_pattern(pattern: &str) -> Regex {
-    RegexBuilder::new(format!("^{pattern}$").as_str())
+    RegexBuilder::new(format!(r"^\s*{pattern}\s*$").as_str())
         .case_insensitive(true)
         .build()
         .unwrap()
@@ -438,7 +438,7 @@ pub fn command_structure() -> Menus {
             Command {
                 arg: "Bn".to_string(),
                 help: "Enter board #n".to_string(),
-                pattern: make_pattern(r"b(\d+)"),
+                pattern: make_pattern(r"b\s*(\d+)"),
                 available: available_always,
                 func: board_enter,
             },
@@ -473,7 +473,7 @@ pub fn command_structure() -> Menus {
             Command {
                 arg: "W msg".to_string(),
                 help: "Write a new message".to_string(),
-                pattern: make_pattern(r"(?s)w(.{1,})"),
+                pattern: make_pattern(r"(?s)w\s*(.+?)\s*"),
                 available: available_in_board,
                 func: board_write,
             },
