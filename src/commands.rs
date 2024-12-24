@@ -253,9 +253,8 @@ fn board_quick(
     //
     // That way they'll see everything in this board, then everything in the next, then the next,
     // and wrap around at the first board and keep going.
-    let mut board_nums: Vec<i32> = Vec::new();
-    board_nums.extend(in_board..=boards::count(conn));
-    board_nums.extend(1..in_board);
+    let mut board_nums: Vec<i32> = (1..=boards::count(conn)).collect();
+    board_nums.rotate_left(in_board as usize - 1);
 
     let mut out = vec![];
     for board_num in board_nums {
