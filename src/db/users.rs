@@ -1,4 +1,4 @@
-use super::models::{NewUser, User};
+use super::models::{User, UserNew, UserUpdate};
 use super::schema::users::{dsl, table};
 use super::{now_as_useconds, Result};
 use diesel::prelude::*;
@@ -27,7 +27,10 @@ pub fn observe(
         now
     };
 
-    let new_user = NewUser {
+    // It's kinda wasteful to create both of these here and only use one of them, but it's more of
+    // a pain in the neck to put this inside the transaction block and deal with the error types
+    // there. So be it. It's not like anything here's particularly expensive.
+    let new_user = UserNew {
         node_id: node_id.trim(),
         short_name: short_name.trim(),
         long_name: long_name.trim(),
@@ -37,6 +40,14 @@ pub fn observe(
     };
     new_user.validate()?;
 
+    let update_user = UserUpdate {
+        short_name: Some(short_name.trim()),
+        long_name: Some(long_name.trim()),
+        last_seen_at_us: &now,
+        last_acted_at_us: None,
+    };
+    update_user.validate()?;
+
     Ok(conn
         .transaction::<_, diesel::result::Error, _>(|conn| {
             if let Ok(user) = get(conn, node_id) {
@@ -44,11 +55,7 @@ pub fn observe(
                 // timestamps.
                 Ok((
                     diesel::update(&user)
-                        .set((
-                            dsl::short_name.eq(short_name),
-                            dsl::long_name.eq(long_name),
-                            dsl::last_seen_at_us.eq(timestamp),
-                        ))
+                        .set(&update_user)
                         .returning(User::as_returning())
                         .get_result(conn)
                         .expect("Error observing existing user"),
@@ -75,7 +82,8 @@ pub fn observe(
 /// they had already interacted with the BBS.
 pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)> {
     let now = now_as_useconds();
-    let new_user = NewUser {
+
+    let new_user = UserNew {
         node_id: node_id.trim(),
         short_name: "????",
         long_name: "????",
@@ -85,6 +93,14 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
     };
     new_user.validate()?;
 
+    let update_user = UserUpdate {
+        short_name: None,
+        long_name: None,
+        last_seen_at_us: &now,
+        last_acted_at_us: Some(&now),
+    };
+    update_user.validate()?;
+
     Ok(conn
         .transaction::<_, diesel::result::Error, _>(|conn| {
             if let Ok(user) = get(conn, node_id) {
@@ -92,7 +108,7 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
                 let has_acted = user.last_acted_at_us.is_some();
                 Ok((
                     diesel::update(&user)
-                        .set((dsl::last_acted_at_us.eq(now), dsl::last_seen_at_us.eq(now)))
+                        .set(&update_user)
                         .returning(User::as_returning())
                         .get_result(conn)
                         .expect("should be able to update a user"),
