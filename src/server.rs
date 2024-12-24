@@ -175,8 +175,8 @@ fn handle_packet(
         if let Ok((bbs_user, seen)) = users::observe(
             conn,
             &user.id,
-            &user.short_name,
-            &user.long_name,
+            Some(&user.short_name),
+            Some(&user.long_name),
             i64::from(meshpacket.rx_time) * 1_000_000,
         ) {
             if seen {
