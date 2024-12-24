@@ -163,9 +163,7 @@ fn handle_packet(
             sender: meshpacket.from,
             reply,
         });
-    }
-
-    if decoded.portnum == PortNum::MapReportApp as i32 {
+    } else if decoded.portnum == PortNum::MapReportApp as i32 {
         let map_report = match MapReport::decode(&decoded.payload[..]) {
             Ok(x) => x,
             Err(err) => {
@@ -176,26 +174,15 @@ fn handle_packet(
                 return None;
             }
         };
-        if let Ok((bbs_user, seen)) = users::observe(
+        observe(
             conn,
             &num_id_to_hex(meshpacket.from),
             Some(&map_report.short_name),
             Some(&map_report.long_name),
-            i64::from(meshpacket.rx_time) * 1_000_000,
-        ) {
-            if seen {
-                log::info!("Observed MapReport at {}: {}", meshpacket.rx_time, bbs_user);
-            } else {
-                log::info!(
-                    "Observed MapReport new at {}: {}",
-                    meshpacket.rx_time,
-                    bbs_user
-                );
-            }
-        };
-    }
-
-    if decoded.portnum == PortNum::NodeinfoApp as i32 {
+            meshpacket.rx_time,
+            "MapReport",
+        );
+    } else if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = match User::decode(&decoded.payload[..]) {
             Ok(x) => x,
             Err(err) => {
@@ -203,23 +190,52 @@ fn handle_packet(
                 return None;
             }
         };
-        if let Ok((bbs_user, seen)) = users::observe(
+        observe(
             conn,
             &user.id,
             Some(&user.short_name),
             Some(&user.long_name),
-            i64::from(meshpacket.rx_time) * 1_000_000,
-        ) {
-            if seen {
-                log::info!("Observed NodeInfo at {}: {}", meshpacket.rx_time, bbs_user);
-            } else {
-                log::info!(
-                    "Observed NodeInfo new at {}: {}",
-                    meshpacket.rx_time,
-                    bbs_user
-                );
-            }
-        };
+            meshpacket.rx_time,
+            "NodeInfo",
+        );
+    } else {
+        observe(
+            conn,
+            &num_id_to_hex(meshpacket.from),
+            None,
+            None,
+            meshpacket.rx_time,
+            &format!("portnum {}", decoded.portnum),
+        );
     }
     None
+}
+
+/// Wrapper around calling users::observe
+fn observe(
+    conn: &mut SqliteConnection,
+    node_id: &str,
+    short_name: Option<&str>,
+    long_name: Option<&str>,
+    rx_time: u32,
+    label: &str,
+) {
+    if let Ok((bbs_user, seen)) = users::observe(
+        conn,
+        node_id,
+        short_name,
+        long_name,
+        i64::from(rx_time) * 1_000_000,
+    ) {
+        if seen {
+            log::info!("Observed portnum {} at {}: {}", label, rx_time, bbs_user);
+        } else {
+            log::info!(
+                "Observed portnum {} new at {}: {}",
+                label,
+                rx_time,
+                bbs_user
+            );
+        }
+    }
 }
