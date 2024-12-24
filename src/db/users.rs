@@ -43,7 +43,7 @@ pub fn observe(
                 // The user already existed. Update their short name, long name, and last seen
                 // timestamps.
                 Ok((
-                    diesel::update(table.filter(dsl::id.eq(user.id)))
+                    diesel::update(&user)
                         .set((
                             dsl::short_name.eq(short_name),
                             dsl::long_name.eq(long_name),
@@ -91,7 +91,7 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
                 // The user already existed. Update their last acted and last seen timestamps.
                 let has_acted = user.last_acted_at_us.is_some();
                 Ok((
-                    diesel::update(table.filter(dsl::id.eq(user.id)))
+                    diesel::update(&user)
                         .set((dsl::last_acted_at_us.eq(now), dsl::last_seen_at_us.eq(now)))
                         .returning(User::as_returning())
                         .get_result(conn)

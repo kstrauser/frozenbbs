@@ -78,7 +78,7 @@ pub struct NewPost<'a> {
     pub created_at_us: &'a i64,
 }
 
-#[derive(Debug, Queryable, Selectable)]
+#[derive(Debug, Identifiable, Queryable, Selectable)]
 #[diesel(table_name = crate::db::schema::users)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct User {
