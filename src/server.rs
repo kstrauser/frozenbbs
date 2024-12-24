@@ -11,7 +11,7 @@ use meshtastic::{
     self,
     api::StreamApi,
     packet::{PacketDestination, PacketRouter},
-    protobufs::{from_radio, mesh_packet, FromRadio, MeshPacket, PortNum, User},
+    protobufs::{from_radio, mesh_packet, FromRadio, MapReport, MeshPacket, PortNum, User},
     types::NodeId,
     utils, Message,
 };
@@ -164,6 +164,37 @@ fn handle_packet(
             reply,
         });
     }
+
+    if decoded.portnum == PortNum::MapReportApp as i32 {
+        let map_report = match MapReport::decode(&decoded.payload[..]) {
+            Ok(x) => x,
+            Err(err) => {
+                log::error!(
+                    "Unable to decode the map report {:?}: {err}",
+                    decoded.payload
+                );
+                return None;
+            }
+        };
+        if let Ok((bbs_user, seen)) = users::observe(
+            conn,
+            &num_id_to_hex(meshpacket.from),
+            Some(&map_report.short_name),
+            Some(&map_report.long_name),
+            i64::from(meshpacket.rx_time) * 1_000_000,
+        ) {
+            if seen {
+                log::info!("Observed MapReport at {}: {}", meshpacket.rx_time, bbs_user);
+            } else {
+                log::info!(
+                    "Observed MapReport new at {}: {}",
+                    meshpacket.rx_time,
+                    bbs_user
+                );
+            }
+        };
+    }
+
     if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = match User::decode(&decoded.payload[..]) {
             Ok(x) => x,
@@ -180,9 +211,13 @@ fn handle_packet(
             i64::from(meshpacket.rx_time) * 1_000_000,
         ) {
             if seen {
-                log::info!("Observed at {}: {}", meshpacket.rx_time, bbs_user);
+                log::info!("Observed NodeInfo at {}: {}", meshpacket.rx_time, bbs_user);
             } else {
-                log::info!("Observed new at {}: {}", meshpacket.rx_time, bbs_user);
+                log::info!(
+                    "Observed NodeInfo new at {}: {}",
+                    meshpacket.rx_time,
+                    bbs_user
+                );
             }
         };
     }
