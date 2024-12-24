@@ -82,6 +82,14 @@ pub async fn event_loop(
     let connected_stream_api;
     let mut decoded_listener;
 
+    eprintln!(
+        "\
+Startup stats:
+
+{}",
+        stats(conn)
+    );
+
     if let Some(tcp_address) = &cfg.tcp_address {
         log::info!("Connecting to {tcp_address}");
         let stream = utils::stream::build_tcp_stream(tcp_address.clone()).await?;
@@ -101,16 +109,6 @@ pub async fn event_loop(
     let mut router = TestPacketRouter {
         my_id: my_id.into(),
     };
-
-    eprintln!(
-        "\
-Startup stats:
-
-{}
-
-Listening for messages.",
-        stats(conn)
-    );
 
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) {
@@ -180,7 +178,7 @@ fn handle_packet(
             Some(&map_report.short_name),
             Some(&map_report.long_name),
             meshpacket.rx_time,
-            "MapReport",
+            decoded.portnum,
         );
     } else if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = match User::decode(&decoded.payload[..]) {
@@ -196,7 +194,7 @@ fn handle_packet(
             Some(&user.short_name),
             Some(&user.long_name),
             meshpacket.rx_time,
-            "NodeInfo",
+            decoded.portnum,
         );
     } else {
         observe(
@@ -205,7 +203,7 @@ fn handle_packet(
             None,
             None,
             meshpacket.rx_time,
-            &format!("portnum {}", decoded.portnum),
+            decoded.portnum,
         );
     }
     None
@@ -218,8 +216,13 @@ fn observe(
     short_name: Option<&str>,
     long_name: Option<&str>,
     rx_time: u32,
-    label: &str,
+    portnum: i32,
 ) {
+    let label = match PortNum::from_i32(portnum) {
+        Some(x) => x.as_str_name(),
+        None => &format!("portnum {portnum}"),
+    };
+
     if let Ok((bbs_user, seen)) = users::observe(
         conn,
         node_id,
@@ -228,9 +231,9 @@ fn observe(
         i64::from(rx_time) * 1_000_000,
     ) {
         if seen {
-            log::info!("Observed {} at {}: {}", label, rx_time, bbs_user);
+            log::debug!("Observed via {} at {}: {}", label, rx_time, bbs_user);
         } else {
-            log::info!("Observed {} new at {}: {}", label, rx_time, bbs_user);
+            log::info!("Observed new via {} at {}: {}", label, rx_time, bbs_user);
         }
     }
 }
