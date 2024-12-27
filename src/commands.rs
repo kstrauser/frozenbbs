@@ -308,6 +308,37 @@ fn board_write(
     format!("Published at {}", post.created_at()).into()
 }
 
+/// Show information about the current post's author
+#[allow(clippy::needless_pass_by_value)]
+fn board_author(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Replies {
+    let Some(in_board) = user.in_board else {
+        return NOT_IN_BOARD.into();
+    };
+    let last_seen = board_states::get(conn, user.id, in_board);
+    if let Ok((_, post_user)) = posts::current(conn, in_board, last_seen) {
+        let mut out = vec![
+            format!("This post was written by {post_user}."),
+            format!("Last seen: {}", user.last_seen_at()),
+            format!("Last active: {}", user.last_acted_at()),
+        ];
+        if let Some(bio) = &post_user.bio {
+            if !bio.is_empty() {
+                linefeed!(out);
+                out.push("Bio:".to_string());
+                out.push(bio.to_string());
+            }
+        }
+        out.into()
+    } else {
+        NO_SUCH_POST.into()
+    }
+}
+
 // Sysop commands
 
 /// Send a BBS advertisement to the main channel.
@@ -497,6 +528,13 @@ pub fn command_structure() -> Menus {
                 pattern: make_pattern(r"(?s)w\s*(.+?)\s*"),
                 available: available_in_board,
                 func: board_write,
+            },
+            Command {
+                arg: "BA".to_string(),
+                help: "Show the current message's author.".to_string(),
+                pattern: make_pattern("ba"),
+                available: available_in_board,
+                func: board_author,
             },
         ],
     };

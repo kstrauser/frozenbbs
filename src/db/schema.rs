@@ -39,6 +39,7 @@ diesel::table! {
         created_at_us -> BigInt,
         last_seen_at_us -> BigInt,
         last_acted_at_us -> Nullable<BigInt>,
+        bio -> Nullable<Text>,
     }
 }
 
