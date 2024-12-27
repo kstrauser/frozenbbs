@@ -38,6 +38,10 @@ db_migrate:
     mkdir -p $(dirname "`{{ dbfile }}`")
     diesel --database-url "`{{ dbfile }}`" migration run
 
+# Format migrations with pg_format
+db_format:
+    pg_format --type-case 2 --function-case 2 --keyword-case 2 -i migrations/*/*.sql
+
 # Export the database to a text file
 db_dump:
     sqlite3 "`{{ dbfile }}`" .dump > backup.sql
