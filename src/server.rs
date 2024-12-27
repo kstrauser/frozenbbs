@@ -1,7 +1,7 @@
 use crate::{
     client::dispatch,
     commands::{self, Replies, ReplyDestination},
-    db::{stats, users},
+    db::{queued_messages, stats, users},
     hex_id_to_num, num_id_to_hex,
     paginate::{paginate, MAX_LENGTH},
     BBSConfig,
@@ -177,6 +177,7 @@ fn handle_packet(
                 return None;
             }
         };
+        let node_id = num_id_to_hex(meshpacket.from);
         observe(
             conn,
             &num_id_to_hex(meshpacket.from),
@@ -185,6 +186,7 @@ fn handle_packet(
             meshpacket.rx_time,
             decoded.portnum,
         );
+        handle_queued_messages(conn, &node_id);
     } else if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = match User::decode(&decoded.payload[..]) {
             Ok(x) => x,
@@ -193,6 +195,7 @@ fn handle_packet(
                 return None;
             }
         };
+        let node_id = num_id_to_hex(meshpacket.from);
         observe(
             conn,
             &user.id,
@@ -201,15 +204,18 @@ fn handle_packet(
             meshpacket.rx_time,
             decoded.portnum,
         );
+        handle_queued_messages(conn, &node_id);
     } else {
+        let node_id = num_id_to_hex(meshpacket.from);
         observe(
             conn,
-            &num_id_to_hex(meshpacket.from),
+            &node_id,
             None,
             None,
             meshpacket.rx_time,
             decoded.portnum,
         );
+        handle_queued_messages(conn, &node_id);
     }
     None
 }
@@ -240,5 +246,20 @@ fn observe(
         } else {
             log::info!("Observed new via {} at {}: {}", label, rx_time, bbs_user);
         }
+    }
+}
+
+/// Send any queued messages for this user.
+fn handle_queued_messages(conn: &mut SqliteConnection, node_id: &str) {
+    let Ok(user) = users::get(conn, node_id) else {
+        return;
+    };
+    let queue = queued_messages::get(conn, &user);
+    if queue.is_empty() {
+        return;
+    }
+    for message in queue {
+        log::info!("Saw {message:?}");
+        queued_messages::sent(conn, &message);
     }
 }

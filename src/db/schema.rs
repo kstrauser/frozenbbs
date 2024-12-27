@@ -29,6 +29,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    queued_messages (id) {
+        id -> Integer,
+        sender_id -> Integer,
+        recipient_id -> Integer,
+        body -> Text,
+        created_at_us -> BigInt,
+        sent_at_us -> Nullable<BigInt>,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Integer,
         node_id -> Text,
@@ -53,5 +64,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     board_states,
     boards,
     posts,
+    queued_messages,
     users,
 );

@@ -153,8 +153,8 @@ pub struct UserUpdate<'a> {
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct BoardState {
     pub id: i32,
-    // pub user_id: i32,
-    // pub board_id: i32,
+    pub user_id: i32,
+    pub board_id: i32,
     pub last_post_us: i64,
 }
 
@@ -167,4 +167,16 @@ pub struct NewBoardState {
     pub board_id: i32,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_post_us: i64,
+}
+
+#[derive(Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = crate::db::schema::queued_messages)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct QueuedMessage {
+    pub id: i32,
+    pub sender_id: i32,
+    pub recipient_id: i32,
+    pub body: String,
+    pub created_at_us: i64,
+    pub sent_at_us: Option<i64>,
 }

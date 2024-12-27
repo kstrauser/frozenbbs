@@ -1,6 +1,7 @@
 pub mod board_states;
 pub mod boards;
 pub mod posts;
+pub mod queued_messages;
 pub mod users;
 use chrono::{Local, MappedLocalTime, TimeZone, Utc};
 pub use models::{Board, Post, User};
