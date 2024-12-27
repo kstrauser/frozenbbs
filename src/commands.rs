@@ -274,7 +274,7 @@ fn board_quick(
     for board_num in board_nums {
         let last_seen = board_states::get(conn, user.id, board_num);
         if let Ok((post, post_user)) = posts::after(conn, board_num, last_seen) {
-            if board_num != in_board {
+            if user.in_board.is_none() || board_num != in_board {
                 let _ = users::enter_board(conn, user, board_num);
                 // Let the user know they're moving to a different board to read the new post.
                 let board = boards::get(conn, board_num).expect("this board should exist");
