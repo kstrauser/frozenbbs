@@ -209,3 +209,8 @@ pub fn counts(conn: &mut SqliteConnection) -> (i32, i32) {
 
     (seen_users, active_users)
 }
+
+/// Update the user's biography
+pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> QueryResult<User> {
+    diesel::update(&user).set(dsl::bio.eq(bio)).get_result(conn)
+}

@@ -5,6 +5,7 @@ use regex::{Regex, RegexBuilder};
 
 const ERROR_POSTING: &str = "Unable to insert this post.";
 const INVALID_BOARD: &str = "That's not a valid board number.";
+const NO_BIO: &str = "You haven't set a bio.";
 const NO_BOARDS: &str = "There are no boards.";
 const NO_MORE_POSTS: &str = "There are no more posts in this board.";
 const NO_MORE_UNREAD: &str = "There are no more unread posts in any board.";
@@ -121,6 +122,33 @@ pub fn user_seen(
         out.push(format!("{}: {}", user.last_seen_at(), user));
     }
     out.into()
+}
+
+/// Read the user's bio.
+pub fn user_bio_read(
+    _conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Replies {
+    if let Some(bio) = &user.bio {
+        if !bio.is_empty() {
+            return bio.to_string().into();
+        }
+    }
+    NO_BIO.into()
+}
+
+/// Update the user's bio.
+#[allow(clippy::needless_pass_by_value)]
+pub fn user_bio_write(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    args: Vec<&str>,
+) -> Replies {
+    let _ = users::update_bio(conn, user, args[0]);
+    "Updated your bio.".into()
 }
 
 // Board commands
@@ -472,6 +500,20 @@ pub fn command_structure() -> Menus {
                 pattern: make_pattern("s"),
                 available: available_always,
                 func: user_seen,
+            },
+            Command {
+                arg: "BIO".to_string(),
+                help: "Show your bio".to_string(),
+                pattern: make_pattern("bio"),
+                available: available_always,
+                func: user_bio_read,
+            },
+            Command {
+                arg: "BIO msg".to_string(),
+                help: "Update your bio".to_string(),
+                pattern: make_pattern(r"(?s)bio\s*(.+?)\s*"),
+                available: available_always,
+                func: user_bio_write,
             },
         ],
     };

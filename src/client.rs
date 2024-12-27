@@ -2,6 +2,7 @@ use crate::commands::{
     command_structure, help_menu, help_toplevel, Menus, Replies, ReplyDestination,
 };
 use crate::db::users;
+use crate::paginate::{paginate, MAX_LENGTH};
 use crate::{linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
