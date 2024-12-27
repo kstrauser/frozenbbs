@@ -52,12 +52,14 @@ pub fn user_observe(
 }
 
 pub fn user_ban(conn: &mut SqliteConnection, node_id: &str) {
-    let user = users::ban(conn, node_id).unwrap();
+    let user = users::get(conn, node_id).unwrap();
+    let user = users::ban(conn, &user).unwrap();
     println!("Banned user {user}");
 }
 
 pub fn user_unban(conn: &mut SqliteConnection, node_id: &str) {
-    let user = users::unban(conn, node_id).unwrap();
+    let user = users::get(conn, node_id).unwrap();
+    let user = users::unban(conn, &user).unwrap();
     println!("Unbanned user {user}");
 }
 
