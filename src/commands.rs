@@ -13,43 +13,57 @@ const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "That's a valid number.";
 
 /// To where shall I respond?
+#[derive(Debug)]
 pub enum ReplyDestination {
     Sender,
     Broadcast,
 }
 
 /// Where and what to send back to the radio.
+#[derive(Debug)]
 pub struct Reply {
     pub out: Vec<String>,
     pub destination: ReplyDestination,
 }
 
+/// The collection of reply messages that a command returns to the client.
+#[derive(Debug)]
+pub struct Replies {
+    pub replies: Vec<Reply>,
+}
+
 /// The command returns a whole Vec of Strings.
-impl From<Vec<String>> for Reply {
+impl From<Vec<String>> for Replies {
     fn from(out: Vec<String>) -> Self {
-        Reply {
-            out,
-            destination: ReplyDestination::Sender,
+        Replies {
+            replies: vec![Reply {
+                out,
+                destination: ReplyDestination::Sender,
+            }],
         }
     }
 }
 
 /// The command returns a single &str.
-impl From<&str> for Reply {
+impl From<&str> for Replies {
     fn from(out: &str) -> Self {
-        Reply {
-            out: vec![out.to_string()],
-            destination: ReplyDestination::Sender,
+        Replies {
+            replies: vec![Reply {
+                out: vec![out.to_string()],
+                destination: ReplyDestination::Sender,
+            }],
         }
     }
 }
 
 /// The command returns a single String.
-impl From<String> for Reply {
+impl From<String> for Replies {
     fn from(out: String) -> Self {
-        Reply {
-            out: vec![out],
-            destination: ReplyDestination::Sender,
+        Replies {
+            replies: vec![Reply {
+                out: vec![out],
+                destination: ReplyDestination::Sender,
+            }],
         }
     }
 }
@@ -62,7 +76,7 @@ pub fn state_describe(
     cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let mut out = vec![format!("Hi, {}!", user)];
     if let Some(user_board) = user.in_board {
         let Ok(board) = boards::get(conn, user_board) else {
@@ -83,7 +97,7 @@ pub fn user_active(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let mut out = Vec::new();
     out.push("Active users:".to_string());
     linefeed!(out);
@@ -99,7 +113,7 @@ pub fn user_seen(
     _cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let mut out = Vec::new();
     out.push("Seen users:".to_string());
     linefeed!(out);
@@ -131,7 +145,7 @@ fn board_lister(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let all_boards = boards::all(conn);
     if all_boards.is_empty() {
         return NO_BOARDS.into();
@@ -160,7 +174,7 @@ fn board_enter(
     _cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let Ok(num) = args[0].parse::<i32>() else {
         return NOT_VALID.into();
     };
@@ -182,7 +196,7 @@ fn board_current(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let Some(in_board) = user.in_board else {
         return NOT_IN_BOARD.into();
     };
@@ -200,7 +214,7 @@ fn board_previous(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let Some(in_board) = user.in_board else {
         return NOT_IN_BOARD.into();
     };
@@ -219,7 +233,7 @@ fn board_next(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let Some(in_board) = user.in_board else {
         return NOT_IN_BOARD.into();
     };
@@ -238,7 +252,7 @@ fn board_quick(
     _cfg: &BBSConfig,
     user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     // General note about this method: it's not terribly efficient and makes repeated calls to the
     // database to get information it could fetch in some more complex joins. I highly, *highly*
     // doubt this will ever be a performance issue, given how inherently small the related data is
@@ -283,7 +297,7 @@ fn board_write(
     _cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
-) -> Reply {
+) -> Replies {
     let Some(in_board) = user.in_board else {
         return NOT_IN_BOARD.into();
     };
@@ -302,10 +316,18 @@ pub fn sysop_advertise(
     cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
-) -> Reply {
-    Reply {
-        out: vec![cfg.ad_text.clone(), String::new(), system_info(cfg)],
-        destination: ReplyDestination::Broadcast,
+) -> Replies {
+    Replies {
+        replies: vec![
+            Reply {
+                out: vec![cfg.ad_text.clone(), String::new(), system_info(cfg)],
+                destination: ReplyDestination::Broadcast,
+            },
+            Reply {
+                out: vec!["You have spammed the general channel.".to_string()],
+                destination: ReplyDestination::Sender,
+            },
+        ],
     }
 }
 
@@ -383,7 +405,7 @@ pub struct Command {
     /// A function that determines whether the user in this state can run this command.
     pub available: fn(&BBSConfig, &User) -> bool,
     /// The function that implements this command.
-    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Reply,
+    pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Replies,
 }
 
 /// Build a Regex in our common fashion.

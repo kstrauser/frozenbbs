@@ -1,9 +1,12 @@
-use crate::commands::{command_structure, help_menu, help_toplevel, Menus, Reply};
+use crate::commands::{
+    command_structure, help_menu, help_toplevel, Menus, Replies, ReplyDestination,
+};
 use crate::db::users;
 use crate::{linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use std::io::{self, Write as _};
 
+const NO_SUCH_COMMAND: &str = "That's not an available command here.";
 const NO_SUCH_HELP: &str = "That help section does not exist or is not available.";
 
 /// Handle a single command from a client and return its output.
@@ -13,17 +16,18 @@ pub fn dispatch(
     node_id: &str,
     menus: &Menus,
     cmdline: &str,
-) -> Reply {
-    let mut out = Vec::new();
+) -> Replies {
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if seen {
         log::info!("Command from {user}: '{cmdline}'");
     } else {
         log::info!("Command from new {user}: '{cmdline}'");
-        out.push(format!("Welcome to {}!", cfg.bbs_name));
-        linefeed!(out);
-        out.push(system_info(cfg));
-        linefeed!(out);
+        let mut out = vec![
+            format!("Welcome to {}!", cfg.bbs_name),
+            String::new(),
+            system_info(cfg),
+            String::new(),
+        ];
         out.extend(help_toplevel(cfg, &user, menus));
         return out.into();
     }
@@ -35,6 +39,7 @@ pub fn dispatch(
         let help_suffix = help_cmdline.strip_prefix("h").unwrap();
         for menu in menus {
             if menu.help_suffix.to_lowercase() == help_suffix {
+                // Only acknowledge menus where the user has access to at least one command.
                 if menu.any_available(cfg, &user) {
                     return help_menu(cfg, &user, menu).into();
                 }
@@ -43,6 +48,8 @@ pub fn dispatch(
         }
         let mut out = Vec::new();
         if !help_suffix.is_empty() {
+            // They tried to find a specific help menu but it didn't exist or they don't have
+            // access.
             out.push(NO_SUCH_HELP.to_string());
             linefeed!(out);
         }
@@ -52,6 +59,7 @@ pub fn dispatch(
 
     for menu in menus {
         for command in &menu.commands {
+            // Skip right over commands the user doesn't have access to.
             if !(command.available)(cfg, &user) {
                 continue;
             }
@@ -63,17 +71,12 @@ pub fn dispatch(
                     .flatten()
                     .map(|x| x.as_str().trim())
                     .collect();
-                let response = (command.func)(conn, cfg, &mut user, args);
-                out.extend(response.out);
-                return Reply {
-                    out,
-                    destination: response.destination,
-                };
+                return (command.func)(conn, cfg, &mut user, args);
             }
         }
     }
-    out.push("That's not an available command here.".to_string());
-    linefeed!(out);
+
+    let mut out = vec![NO_SUCH_COMMAND.to_string(), String::new()];
     out.extend(help_toplevel(cfg, &user, menus));
     out.into()
 }
@@ -98,21 +101,25 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
             println!("Disconnected.");
             return;
         }
-        print!(
-            "{}",
-            dispatch(conn, cfg, node_id, &commands, command.trim())
-                .out
-                .join("\n")
-        );
+        print_replies(dispatch(conn, cfg, node_id, &commands, command.trim()));
     }
 }
 
 /// Run a single command.
 pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, command: &str) {
-    println!(
-        "{}",
-        dispatch(conn, cfg, node_id, &command_structure(), command)
-            .out
-            .join("\n")
-    );
+    print_replies(dispatch(conn, cfg, node_id, &command_structure(), command));
+}
+
+fn print_replies(replies: Replies) {
+    for reply in replies.replies {
+        match reply.destination {
+            ReplyDestination::Broadcast => {
+                println!("Reply to the public channel:");
+            }
+            ReplyDestination::Sender => {
+                println!("Reply to you:");
+            }
+        };
+        println!("{}", reply.out.join("\n"));
+    }
 }

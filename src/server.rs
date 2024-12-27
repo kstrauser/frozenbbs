@@ -1,6 +1,6 @@
 use crate::{
     client::dispatch,
-    commands::{self, Reply, ReplyDestination},
+    commands::{self, Replies, ReplyDestination},
     db::{stats, users},
     hex_id_to_num, num_id_to_hex,
     paginate::{paginate, MAX_LENGTH},
@@ -69,7 +69,7 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
 /// Replies that commands send back to the radio.
 struct Response {
     sender: u32,
-    reply: Reply,
+    replies: Replies,
 }
 
 pub async fn event_loop(
@@ -86,7 +86,8 @@ pub async fn event_loop(
         "\
 Startup stats:
 
-{}",
+{}
+",
         stats(conn)
     );
 
@@ -112,16 +113,20 @@ Startup stats:
 
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) {
-            let (channel, destination) = match response.reply.destination {
-                ReplyDestination::Sender => {
-                    (0, PacketDestination::Node(NodeId::new(response.sender)))
+            for reply in response.replies.replies {
+                let (channel, destination) = match reply.destination {
+                    ReplyDestination::Sender => {
+                        (0, PacketDestination::Node(NodeId::new(response.sender)))
+                    }
+                    ReplyDestination::Broadcast => {
+                        (cfg.public_channel, PacketDestination::Broadcast)
+                    }
+                };
+                for page in paginate(reply.out, MAX_LENGTH) {
+                    stream_api
+                        .send_text(&mut router, page, destination, true, channel.into())
+                        .await?;
                 }
-                ReplyDestination::Broadcast => (cfg.public_channel, PacketDestination::Broadcast),
-            };
-            for page in paginate(response.reply.out, MAX_LENGTH) {
-                stream_api
-                    .send_text(&mut router, page, destination, true, channel.into())
-                    .await?;
             }
         }
     }
@@ -155,11 +160,11 @@ fn handle_packet(
             }
         };
         log::debug!("Received command from {}: <{}>", node_id, command);
-        let reply = dispatch(conn, cfg, &node_id, menus, command.trim());
-        log::debug!("Result: {:?}", &reply.out);
+        let replies = dispatch(conn, cfg, &node_id, menus, command.trim());
+        log::debug!("Result: {:?}", &replies);
         return Some(Response {
             sender: meshpacket.from,
-            reply,
+            replies,
         });
     } else if decoded.portnum == PortNum::MapReportApp as i32 {
         let map_report = match MapReport::decode(&decoded.payload[..]) {
