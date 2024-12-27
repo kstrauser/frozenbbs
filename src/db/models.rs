@@ -91,6 +91,7 @@ pub struct User {
     pub created_at_us: i64,
     pub last_seen_at_us: i64,
     pub last_acted_at_us: Option<i64>,
+    pub bio: Option<String>,
 }
 
 impl fmt::Display for User {
