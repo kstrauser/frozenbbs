@@ -150,13 +150,13 @@ pub fn all(conn: &mut SqliteConnection) -> Vec<User> {
         .expect("Error loading users")
 }
 
-pub fn ban(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
-    diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))
+pub fn ban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
+    diesel::update(&user)
         .set(dsl::jackass.eq(true))
         .get_result(conn)
 }
-pub fn unban(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
-    diesel::update(dsl::users.filter(dsl::node_id.eq(node_id)))
+pub fn unban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
+    diesel::update(&user)
         .set(dsl::jackass.eq(false))
         .get_result(conn)
 }
