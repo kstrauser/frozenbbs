@@ -145,7 +145,7 @@ pub struct UserUpdate<'a> {
     pub last_acted_at_us: Option<&'a i64>,
 }
 
-#[derive(Debug, Queryable, Selectable)]
+#[derive(Debug, Identifiable, Queryable, Selectable)]
 #[diesel(table_name = crate::db::schema::board_states)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct BoardState {

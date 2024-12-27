@@ -46,7 +46,7 @@ pub fn update(conn: &mut SqliteConnection, user_id: i32, board_id: i32, last_pos
             .optional()
             .expect("should be able to select for a user's board state");
         if let Some(state) = state {
-            diesel::update(table.filter(dsl::id.eq(state.id)))
+            diesel::update(&state)
                 .set(dsl::last_post_us.eq(last_post_us))
                 .execute(conn)
                 .expect("should be able to update a user's board state");
