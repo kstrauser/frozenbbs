@@ -1,5 +1,5 @@
 use crate::commands::{
-    command_structure, help_menu, help_toplevel, Menus, Replies, ReplyDestination,
+    available_state, command_structure, help_menu, help_toplevel, Menus, Replies, ReplyDestination,
 };
 use crate::db::users;
 use crate::paginate::{paginate, MAX_LENGTH};
@@ -29,9 +29,12 @@ pub fn dispatch(
             system_info(cfg),
             String::new(),
         ];
-        out.extend(help_toplevel(cfg, &user, menus));
+        let state = available_state(cfg, &user);
+        out.extend(help_toplevel(&state, menus));
         return out.into();
     }
+
+    let state = available_state(cfg, &user);
 
     // Special handling for help requests
     let help_cmdline = cmdline.to_lowercase();
@@ -41,8 +44,8 @@ pub fn dispatch(
         for menu in menus {
             if menu.help_suffix.to_lowercase() == help_suffix {
                 // Only acknowledge menus where the user has access to at least one command.
-                if menu.any_available(cfg, &user) {
-                    return help_menu(cfg, &user, menu).into();
+                if menu.any_available(&state) {
+                    return help_menu(&state, menu).into();
                 }
                 break;
             }
@@ -54,14 +57,14 @@ pub fn dispatch(
             out.push(NO_SUCH_HELP.to_string());
             linefeed!(out);
         }
-        out.extend(help_toplevel(cfg, &user, menus));
+        out.extend(help_toplevel(&state, menus));
         return out.into();
     }
 
     for menu in menus {
         for command in &menu.commands {
             // Skip right over commands the user doesn't have access to.
-            if !(command.available)(cfg, &user) {
+            if !(command.available)(&state) {
                 continue;
             }
             if let Some(captures) = command.pattern.captures(cmdline) {
@@ -78,7 +81,7 @@ pub fn dispatch(
     }
 
     let mut out = vec![NO_SUCH_COMMAND.to_string(), String::new()];
-    out.extend(help_toplevel(cfg, &user, menus));
+    out.extend(help_toplevel(&state, menus));
     out.into()
 }
 
