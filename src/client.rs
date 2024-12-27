@@ -121,6 +121,6 @@ fn print_replies(replies: Replies) {
                 println!("Reply to you:");
             }
         };
-        println!("{}", reply.out.join("\n"));
+        println!("{}", paginate(reply.out, MAX_LENGTH).join("\n"));
     }
 }
