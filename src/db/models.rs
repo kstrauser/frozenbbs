@@ -141,9 +141,11 @@ pub struct UserUpdate<'a> {
     #[validate(length(min = 1, max = 40))]
     pub long_name: Option<&'a str>,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
-    pub last_seen_at_us: &'a i64,
+    pub last_seen_at_us: Option<&'a i64>,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_acted_at_us: Option<&'a i64>,
+    #[validate(length(min = 0, max = 200))]
+    pub bio: Option<String>,
 }
 
 #[derive(Debug, Identifiable, Queryable, Selectable)]

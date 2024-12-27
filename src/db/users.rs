@@ -56,8 +56,9 @@ pub fn observe(
     let update_user = UserUpdate {
         short_name,
         long_name,
-        last_seen_at_us: &now,
+        last_seen_at_us: Some(&now),
         last_acted_at_us: None,
+        bio: None,
     };
     update_user.validate()?;
 
@@ -109,8 +110,9 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
     let update_user = UserUpdate {
         short_name: None,
         long_name: None,
-        last_seen_at_us: &now,
+        last_seen_at_us: Some(&now),
         last_acted_at_us: Some(&now),
+        bio: None,
     };
     update_user.validate()?;
 
@@ -155,6 +157,7 @@ pub fn ban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
         .set(dsl::jackass.eq(true))
         .get_result(conn)
 }
+
 pub fn unban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
     diesel::update(&user)
         .set(dsl::jackass.eq(false))
@@ -211,6 +214,19 @@ pub fn counts(conn: &mut SqliteConnection) -> (i32, i32) {
 }
 
 /// Update the user's biography
-pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> QueryResult<User> {
-    diesel::update(&user).set(dsl::bio.eq(bio)).get_result(conn)
+pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> Result<User> {
+    let update_user = UserUpdate {
+        short_name: None,
+        long_name: None,
+        last_seen_at_us: None,
+        last_acted_at_us: None,
+        bio: Some(bio.to_string()),
+    };
+    update_user.validate()?;
+
+    Ok(diesel::update(&user)
+        .set(dsl::bio.eq(bio))
+        .returning(User::as_returning())
+        .get_result(conn)
+        .expect("we must be able to update users"))
 }
