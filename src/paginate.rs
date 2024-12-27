@@ -57,7 +57,7 @@ pub fn splitted(text: &str, max_length: usize) -> Vec<String> {
 pub fn paginate(lines: Vec<String>, max_length: usize) -> Vec<String> {
     let one_page = lines.join("\n");
     if one_page.len() <= max_length {
-        return vec![one_page];
+        return vec![shrink(&one_page)];
     }
 
     let mut buf = String::new();
