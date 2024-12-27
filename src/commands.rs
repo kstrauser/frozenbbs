@@ -393,12 +393,12 @@ pub fn sysop_advertise(
 // Help creators
 
 /// Show the user how to get help on all menus available to them right now.
-pub fn help_toplevel(cfg: &BBSConfig, user: &User, menus: &Menus) -> Vec<String> {
+pub fn help_toplevel(state: &AvailableState, menus: &Menus) -> Vec<String> {
     let mut out = Vec::new();
     out.push("Help commands:".to_string());
     linefeed!(out);
     for menu in menus {
-        if menu.any_available(cfg, user) {
+        if menu.any_available(state) {
             out.push(format!("H{} : {} menu", menu.help_suffix, menu.name));
         }
     }
@@ -407,11 +407,11 @@ pub fn help_toplevel(cfg: &BBSConfig, user: &User, menus: &Menus) -> Vec<String>
 }
 
 /// Show the user the commands available to them on this menu.
-pub fn help_menu(cfg: &BBSConfig, user: &User, menu: &Menu) -> Vec<String> {
+pub fn help_menu(state: &AvailableState, menu: &Menu) -> Vec<String> {
     let mut out = vec![format!("Help for {} commands", menu.name)];
     linefeed!(out);
     for command in &menu.commands {
-        if (command.available)(cfg, user) {
+        if (command.available)(state) {
             out.push(format!("{} : {}", command.arg, command.help));
         }
     }
@@ -420,19 +420,33 @@ pub fn help_menu(cfg: &BBSConfig, user: &User, menu: &Menu) -> Vec<String> {
 
 // Contexts in which certain actions may be available
 
+/// Information about the user's state during a single command.
+pub struct AvailableState {
+    in_board: bool,
+    is_sysop: bool,
+}
+
+/// Pre-compute values used by available_* functions so we're not repeatedly hitting the database.
+pub fn available_state(cfg: &BBSConfig, user: &User) -> AvailableState {
+    AvailableState {
+        in_board: user.in_board.is_some(),
+        is_sysop: cfg.sysops.contains(&user.node_id),
+    }
+}
+
 /// These commands are always available.
-fn available_always(_cfg: &BBSConfig, _user: &User) -> bool {
+fn available_always(_state: &AvailableState) -> bool {
     true
 }
 
 /// These commands are available to sysops.
-fn available_to_sysops(cfg: &BBSConfig, user: &User) -> bool {
-    cfg.sysops.contains(&user.node_id)
+fn available_to_sysops(state: &AvailableState) -> bool {
+    state.is_sysop
 }
 
 /// Return whether the user is in a message board.
-fn available_in_board(_cfg: &BBSConfig, user: &User) -> bool {
-    user.in_board.is_some()
+fn available_in_board(state: &AvailableState) -> bool {
+    state.in_board
 }
 
 // Build the collection of defined commands
@@ -446,8 +460,8 @@ pub struct Menu {
 
 impl Menu {
     /// Are any commands in this section available to the user?
-    pub fn any_available(&self, cfg: &BBSConfig, user: &User) -> bool {
-        self.commands.iter().any(|x| (x.available)(cfg, user))
+    pub fn any_available(&self, state: &AvailableState) -> bool {
+        self.commands.iter().any(|x| (x.available)(state))
     }
 }
 
@@ -462,7 +476,7 @@ pub struct Command {
     /// The pattern matching the command and its arguments.
     pub pattern: Regex,
     /// A function that determines whether the user in this state can run this command.
-    pub available: fn(&BBSConfig, &User) -> bool,
+    pub available: fn(&AvailableState) -> bool,
     /// The function that implements this command.
     pub func: fn(&mut SqliteConnection, &BBSConfig, &mut User, Vec<&str>) -> Replies,
 }
