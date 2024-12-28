@@ -1,7 +1,5 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{
-    admin, canonical_node_id, client, config_example, config_load, config_path, db, server,
-};
+use frozenbbs::{admin, canonical_node_id, client, config_load, config_path, db, server};
 use log::LevelFilter;
 
 // The command line layout
@@ -74,6 +72,8 @@ enum ClientCommands {
 enum ConfigCommands {
     /// Show the path to the config file.
     ConfigPath {},
+    /// Show the contents of the config file.
+    Dump {},
     /// Show the path to the database file.
     DbPath {},
 }
@@ -151,24 +151,23 @@ enum UserCommands {
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
-    let cfg = match config_load() {
-        Ok(x) => x,
-        Err(err) => {
-            let config_path = config_path();
-            let config = config_example();
-            eprintln!(
-                "\
-Unable to read the config file at {config_path:?}: {err}
-
-Create a new file with values similar to:
-
-=======
-{config}======="
-            );
-            return;
-        }
-    };
     let cli = Cli::parse();
+    let cfg = config_load().expect("the default configuration should always be available");
+
+    // Process commands to show configuration information before connecting to the database.
+    if let Some(Subsystems::Config { config_command }) = &cli.command {
+        match config_command {
+            Some(ConfigCommands::ConfigPath {}) => println!("{}", config_path().display()),
+            Some(ConfigCommands::Dump {}) => println!(
+                "{}",
+                toml::to_string(&cfg)
+                    .expect("toml should be able to serialize a simple config object")
+            ),
+            Some(ConfigCommands::DbPath {}) => println!("{}", &cfg.db_path),
+            None => {}
+        }
+        return;
+    };
 
     // Crank up the BBS and Meshtastic logging as verbosity increases.
     let (bbs_level, radio_level) = match cli.verbose {
@@ -185,17 +184,6 @@ Create a new file with values similar to:
         .with_local_timestamps()
         .init()
         .unwrap();
-
-    // Process commands to show configuration information before connecting to the database.
-    if let Some(Subsystems::Config { config_command }) = &cli.command {
-        match config_command {
-            Some(ConfigCommands::ConfigPath {}) => {
-                return println!("{}", config_path().into_os_string().into_string().unwrap())
-            }
-            Some(ConfigCommands::DbPath {}) => return println!("{}", &cfg.db_path),
-            None => {}
-        }
-    };
 
     let conn = &mut db::establish_connection(&cfg);
 

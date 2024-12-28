@@ -63,8 +63,19 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
     let config_path = config_path();
 
     let config = Config::builder()
-        .add_source(config::File::from(config_path.clone()))
+        .set_default("bbs_name", "My Frozen BBS❅")?
+        .set_default("my_id", "!cafeb33d")?
+        .set_default("db_path", default_db_path().display().to_string())?
+        .set_default("serial_device", "/dev/ttyUSB0")?
+        .set_default("sysops", Vec::<String>::new())?
+        .set_default("public_channel", 0)?
+        .set_default(
+            "ad_text",
+            "I'm running a BBS on this node. DM me to get started!",
+        )?
+        .add_source(config::File::from(config_path.clone()).required(false))
         .build()?;
+
     let config: BBSConfig = config.try_deserialize()?;
 
     if (config.serial_device.is_some() && config.tcp_address.is_some())
@@ -74,21 +85,6 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
     }
 
     Ok(config)
-}
-
-pub fn config_example() -> String {
-    let config = BBSConfig {
-        bbs_name: "Frozen BBS❅".into(),
-        my_id: "!cafeb33d".into(),
-        db_path: default_db_path().into_os_string().into_string().unwrap(),
-        serial_device: Some("/dev/ttyUSB0".into()),
-        tcp_address: None,
-        sysops: Vec::new(),
-        public_channel: 0,
-        ad_text: "I'm running a BBS on this node. DM me to get started!".into(),
-    };
-
-    toml::to_string(&config).expect("toml should be able to serialize a simple config object")
 }
 
 /// Describe this system.

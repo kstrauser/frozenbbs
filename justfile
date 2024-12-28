@@ -24,6 +24,10 @@ build_release:
 install: build_release
     cargo install --path .
 
+# Create the default configuration file
+default_config:
+    cargo run config dump > `cargo run config config-path`
+
 # Connect to the database
 db_shell:
     sqlite3 "`{{ dbfile }}`"
