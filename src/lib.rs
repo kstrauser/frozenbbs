@@ -17,6 +17,9 @@ pub fn hex_id_to_num(node_id: &str) -> Option<u32> {
     } else {
         node_id
     };
+    if node_id.len() != 8 {
+        return None;
+    }
     u32::from_str_radix(node_id, 16).ok()
 }
 
