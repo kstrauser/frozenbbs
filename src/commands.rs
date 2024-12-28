@@ -29,43 +29,35 @@ pub struct Reply {
 
 /// The collection of reply messages that a command returns to the client.
 #[derive(Debug)]
-pub struct Replies {
-    pub replies: Vec<Reply>,
-}
+pub struct Replies(pub Vec<Reply>);
 
 /// The command returns a whole Vec of Strings.
 impl From<Vec<String>> for Replies {
     fn from(out: Vec<String>) -> Self {
-        Replies {
-            replies: vec![Reply {
-                out,
-                destination: ReplyDestination::Sender,
-            }],
-        }
+        Replies(vec![Reply {
+            out,
+            destination: ReplyDestination::Sender,
+        }])
     }
 }
 
 /// The command returns a single &str.
 impl From<&str> for Replies {
     fn from(out: &str) -> Self {
-        Replies {
-            replies: vec![Reply {
-                out: vec![out.to_string()],
-                destination: ReplyDestination::Sender,
-            }],
-        }
+        Replies(vec![Reply {
+            out: vec![out.to_string()],
+            destination: ReplyDestination::Sender,
+        }])
     }
 }
 
 /// The command returns a single String.
 impl From<String> for Replies {
     fn from(out: String) -> Self {
-        Replies {
-            replies: vec![Reply {
-                out: vec![out],
-                destination: ReplyDestination::Sender,
-            }],
-        }
+        Replies(vec![Reply {
+            out: vec![out],
+            destination: ReplyDestination::Sender,
+        }])
     }
 }
 
@@ -376,18 +368,16 @@ pub fn sysop_advertise(
     _user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
-    Replies {
-        replies: vec![
-            Reply {
-                out: vec![cfg.ad_text.clone(), String::new(), system_info(cfg)],
-                destination: ReplyDestination::Broadcast,
-            },
-            Reply {
-                out: vec!["You have spammed the general channel.".to_string()],
-                destination: ReplyDestination::Sender,
-            },
-        ],
-    }
+    Replies(vec![
+        Reply {
+            out: vec![cfg.ad_text.clone(), String::new(), system_info(cfg)],
+            destination: ReplyDestination::Broadcast,
+        },
+        Reply {
+            out: vec!["You have spammed the general channel.".to_string()],
+            destination: ReplyDestination::Sender,
+        },
+    ])
 }
 
 // Help creators

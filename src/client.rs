@@ -115,7 +115,7 @@ pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, comm
 }
 
 fn print_replies(replies: Replies) {
-    for reply in replies.replies {
+    for reply in replies.0 {
         match reply.destination {
             ReplyDestination::Broadcast => {
                 println!("Reply to the public channel:");
