@@ -1,5 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
-use frozenbbs::{admin, canonical_node_id, client, config_load, config_path, db, server};
+use frozenbbs::{
+    admin, canonical_node_id, client, config_load, config_path, db, server, FAKE_MY_ID,
+};
 use log::LevelFilter;
 
 // The command line layout
@@ -184,6 +186,17 @@ async fn main() {
         .with_local_timestamps()
         .init()
         .unwrap();
+
+    if cfg.my_id == FAKE_MY_ID {
+        eprintln!(
+            "!!!!!!!!!
+You are using the default value for `my_id`.
+        
+Edit \"{}\" to set it to your radio's node ID.
+!!!!!!!!",
+            config_path().display(),
+        );
+    }
 
     let conn = &mut db::establish_connection(&cfg);
 
