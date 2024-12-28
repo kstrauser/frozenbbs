@@ -28,7 +28,7 @@ $ just db_migrate
 You can optionally make some demo objects:
 
 ```shell
-$ just db_init
+$ just db_fixture
 ```
 
 # Configuring
