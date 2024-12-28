@@ -56,6 +56,10 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         // Check the packet
         log::debug!("handle_mesh_packet: {:#?}", packet);
 
+        if self.my_id == packet.to {
+            panic!("I got tricked into messaging myself. I'd rather panic than blue up the radio.");
+        }
+
         Ok(HandlerMetadata {})
     }
 
@@ -67,9 +71,10 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
 }
 
 /// Replies that commands send back to the radio.
+#[derive(Debug)]
 struct Response {
     sender: u32,
-    replies: Replies,
+    replies: Option<Replies>,
 }
 
 pub async fn event_loop(
@@ -117,17 +122,21 @@ Startup stats:
         };
 
         // Send any replies from the commands the user executed.
-        for reply in response.replies.0 {
-            let (channel, destination) = match reply.destination {
-                ReplyDestination::Sender => {
-                    (0, PacketDestination::Node(NodeId::new(response.sender)))
+        if let Some(replies) = response.replies {
+            for reply in replies.0 {
+                let (channel, destination) = match reply.destination {
+                    ReplyDestination::Sender => {
+                        (0, PacketDestination::Node(NodeId::new(response.sender)))
+                    }
+                    ReplyDestination::Broadcast => {
+                        (cfg.public_channel, PacketDestination::Broadcast)
+                    }
+                };
+                for page in paginate(reply.out, MAX_LENGTH) {
+                    stream_api
+                        .send_text(&mut router, page, destination, true, channel.into())
+                        .await?;
                 }
-                ReplyDestination::Broadcast => (cfg.public_channel, PacketDestination::Broadcast),
-            };
-            for page in paginate(reply.out, MAX_LENGTH) {
-                stream_api
-                    .send_text(&mut router, page, destination, true, channel.into())
-                    .await?;
             }
         }
 
@@ -205,7 +214,7 @@ fn handle_packet(
         log::debug!("Result: {:?}", &replies);
         return Some(Response {
             sender: meshpacket.from,
-            replies,
+            replies: Some(replies),
         });
     }
 
@@ -248,7 +257,7 @@ fn handle_packet(
 
     Some(Response {
         sender: meshpacket.from,
-        replies: Vec::new().into(),
+        replies: None,
     })
 }
 
