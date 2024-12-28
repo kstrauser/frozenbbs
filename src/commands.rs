@@ -1,15 +1,17 @@
-use crate::db::{board_states, boards, posts, users, Post, User};
-use crate::{linefeed, system_info, BBSConfig};
+use crate::db::{board_states, boards, posts, queued_messages, users, Post, User};
+use crate::{canonical_node_id, linefeed, system_info, BBSConfig};
 use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 
 const ERROR_POSTING: &str = "Unable to insert this post.";
 const INVALID_BOARD: &str = "That's not a valid board number.";
+const INVALID_NODEID: &str = "The given address is invalid.";
 const NO_BIO: &str = "You haven't set a bio.";
 const NO_BOARDS: &str = "There are no boards.";
 const NO_MORE_POSTS: &str = "There are no more posts in this board.";
 const NO_MORE_UNREAD: &str = "There are no more unread posts in any board.";
 const NO_SUCH_POST: &str = "There is no post here.";
+const NO_SUCH_USER: &str = "That user does not exist.";
 const NOT_IN_BOARD: &str = "You are not in a board.";
 const NOT_VALID: &str = "That's a valid number.";
 
@@ -141,6 +143,34 @@ pub fn user_bio_write(
 ) -> Replies {
     let _ = users::update_bio(conn, user, args[0]);
     "Updated your bio.".into()
+}
+
+/// Message another user
+#[allow(clippy::needless_pass_by_value)]
+pub fn direct_message(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    args: Vec<&str>,
+) -> Replies {
+    let Some(node_id) = args.first() else {
+        return "Unable to find the recipient".into();
+    };
+    let Some(body) = args.get(1) else {
+        return "Unable to find the message".into();
+    };
+
+    let Ok(node_id) = canonical_node_id(node_id) else {
+        return INVALID_NODEID.into();
+    };
+    let Ok(recipient) = users::get(conn, &node_id) else {
+        return NO_SUCH_USER.into();
+    };
+
+    let Ok(post) = queued_messages::post(conn, user, &recipient, body) else {
+        return ERROR_POSTING.into();
+    };
+    format!("Published at {}", post.created_at()).into()
 }
 
 // Board commands
@@ -504,6 +534,13 @@ pub fn command_structure() -> Menus {
                 pattern: make_pattern("s"),
                 available: available_always,
                 func: user_seen,
+            },
+            Command {
+                arg: "DM user msg".to_string(),
+                help: "Send a message".to_string(),
+                pattern: make_pattern(r"(?s)dm\s*(\S+)\s+(.+?)\s*"),
+                available: available_always,
+                func: direct_message,
             },
             Command {
                 arg: "BIO".to_string(),
