@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub const BBS_TAG: &str = "frozenbbs";
+pub const FAKE_MY_ID: &str = "!cafeb33d";
 
 /// Convert a node Id like 12345678 or !abcdef12 to their u32 value.
 pub fn hex_id_to_num(node_id: &str) -> Option<u32> {
@@ -64,7 +65,7 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
 
     let config = Config::builder()
         .set_default("bbs_name", "My Frozen BBS❅")?
-        .set_default("my_id", "!cafeb33d")?
+        .set_default("my_id", FAKE_MY_ID)?
         .set_default("db_path", default_db_path().display().to_string())?
         .set_default("serial_device", "/dev/ttyUSB0")?
         .set_default("sysops", Vec::<String>::new())?
