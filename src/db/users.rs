@@ -180,6 +180,9 @@ pub fn get_by_user_id(conn: &mut SqliteConnection, user_id: i32) -> QueryResult<
 }
 
 /// Get a user by their short_name field.
+///
+/// short_names aren't unique. This returns Some(User) if exactly one user has the given
+/// short name, or else None.
 pub fn get_by_short_name(conn: &mut SqliteConnection, short_name: &str) -> Option<User> {
     let mut users = dsl::users
         .select(User::as_select())

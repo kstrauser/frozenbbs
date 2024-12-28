@@ -160,18 +160,18 @@ pub fn direct_message(
         return "Unable to find the message".into();
     };
 
-    let recipient: User = if node_id.len() <= 4 {
-        match users::get_by_short_name(conn, node_id) {
-            Some(x) => x,
-            None => return NO_SUCH_USER.into(),
-        }
-    } else {
+    let recipient: User = if node_id.len() > 5 || node_id.starts_with('!') {
         let Some(node_id) = canonical_node_id(node_id) else {
             return INVALID_NODEID.into();
         };
         match users::get(conn, &node_id) {
             Ok(x) => x,
             Err(_) => return NO_SUCH_USER.into(),
+        }
+    } else {
+        match users::get_by_short_name(conn, node_id) {
+            Some(x) => x,
+            None => return NO_SUCH_USER.into(),
         }
     };
 
