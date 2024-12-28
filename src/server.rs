@@ -106,7 +106,7 @@ Startup stats:
     let config_id = utils::generate_rand_id();
     let mut stream_api = connected_stream_api.configure(config_id).await?;
 
-    let my_id = hex_id_to_num(&cfg.my_id);
+    let my_id = hex_id_to_num(&cfg.my_id).unwrap();
     let mut router = TestPacketRouter {
         my_id: my_id.into(),
     };
@@ -161,8 +161,8 @@ Startup stats:
                 String::new(),
                 message.body.to_string(),
             ];
+            let destination = PacketDestination::Node(NodeId::new(user.node_id_numeric()));
             for page in paginate(out, MAX_LENGTH) {
-                let destination = PacketDestination::Node(NodeId::new(user.node_id_numeric()));
                 stream_api
                     .send_text(&mut router, page, destination, true, 0.into())
                     .await?;
