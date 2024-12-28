@@ -103,7 +103,7 @@ impl fmt::Display for User {
 
 impl User {
     pub fn node_id_numeric(&self) -> u32 {
-        hex_id_to_num(&self.node_id)
+        hex_id_to_num(&self.node_id).expect("node_ids in the database should always be valid")
     }
     pub fn created_at(&self) -> String {
         formatted_useconds(self.created_at_us)

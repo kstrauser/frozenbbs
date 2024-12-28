@@ -1,7 +1,6 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{
-    admin, client, config_example, config_load, config_path, db, hex_id_to_num, num_id_to_hex,
-    server,
+    admin, canonical_node_id, client, config_example, config_load, config_path, db, server,
 };
 use log::LevelFilter;
 
@@ -148,11 +147,6 @@ enum UserCommands {
     },
 }
 
-/// Convert a possibly mixed case node ID, with or without the leading !, to its canonical format.
-pub fn canonical_node_id(node_id: &str) -> String {
-    num_id_to_hex(hex_id_to_num(node_id))
-}
-
 /// The main command line handler.
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
@@ -207,7 +201,8 @@ Create a new file with values similar to:
 
     // Use the passed-in node ID, if given, or else the node's own ID.
     let default_or = |node_id: &Option<String>| -> String {
-        canonical_node_id(&(if let Some(x) = node_id { x } else { &cfg.my_id }.clone()))
+        let id_or_default = if let Some(x) = node_id { x } else { &cfg.my_id };
+        canonical_node_id(id_or_default).unwrap()
     };
 
     match &cli.command {
@@ -246,15 +241,15 @@ Create a new file with values similar to:
                 long_name,
             }) => admin::user_observe(
                 conn,
-                &canonical_node_id(node_id),
+                &canonical_node_id(node_id).unwrap(),
                 short_name.as_deref(),
                 long_name.as_deref(),
             ),
             Some(UserCommands::Ban { node_id }) => {
-                admin::user_ban(conn, &canonical_node_id(node_id));
+                admin::user_ban(conn, &canonical_node_id(node_id).unwrap());
             }
             Some(UserCommands::Unban { node_id }) => {
-                admin::user_unban(conn, &canonical_node_id(node_id));
+                admin::user_unban(conn, &canonical_node_id(node_id).unwrap());
             }
             None => {}
         },
