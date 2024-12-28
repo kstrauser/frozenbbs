@@ -12,12 +12,11 @@ Clone this repo. Run `cargo build`. Ta-da: now it's built.
 
 # Getting started
 
-Install `diesel_cli` and create a `.env` file telling Frozen BBS where to put its database file. You can do these with:
+Install `diesel_cli`.
 
 ```shell
 $ just setup
 Installed diesel.
-Configured .env.
 ```
 
 Now, run the database migrations to create the tables:
@@ -26,7 +25,7 @@ Now, run the database migrations to create the tables:
 $ just db_migrate
 ```
 
-You can make some demo objects:
+You can optionally make some demo objects:
 
 ```shell
 $ just db_init
@@ -34,25 +33,33 @@ $ just db_init
 
 # Configuring
 
-`frozenbbs` will create a sample config file and display its name on its first run. Edit this file with your own values:
+`just default_config` will create a sample config file:
+
+```shell
+$ just default_config
+mkdir -p $(dirname "`cargo run config config-path`")
+cargo run config dump > "`cargo run config config-path`"
+```
+
+Run `cargo run config config-path` to get the path to the config file. Edit it to at least set `my_id` to the node ID of your radio. `frozenbbs` will pester you until you do this.
 
 ```toml
-db_path = "/Users/myname/.local/share/frozenbbs/frozen.db"
 my_id = "!cafeb33d"
+db_path = "/Users/myname/.local/share/frozenbbs/frozen.db"
 serial_device = "/dev/ttyUSB0" # *or* tcp_address = "myradio.example.com:4403"
 sysops = ["!cafeb33d"]
 public_channel = 0
 ad_text = "I'm running a BBS on this node. DM me to get started!"
 ```
 
-* `db_path` is probably usable as-is.
-* `serial_device` may also be OK, although I had to use `/dev/ttyACM0` on my Raspberry Pi.
-* `tcp_address` is the radio's hostname:port to connect to.
-  * Specify *either* `serial_device` *or* `tcp_address`, but not both.
-* `my_id` should be the hex name of the Meshtastic node you'll be running the BBS on. It will only process messages which are addressed to that ID.
-* `sysops` lists usrs who can execute administration commands.
-* `public_channel` sets the channel number to send BBS ads to.
-* `ad_text` is the message that the sysop_advertise command sends to the public channel.
+- `my_id` should be the hex name of the Meshtastic node you'll be running the BBS on. It will only process messages which are addressed to that ID.
+- `db_path` is probably usable as-is.
+- `serial_device` may also be OK, although I had to use `/dev/ttyACM0` on my Raspberry Pi.
+- `tcp_address` is the radio's hostname:port to connect to.
+  - Specify _either_ `serial_device` _or_ `tcp_address`, but not both.
+- `sysops` lists usrs who can execute administration commands.
+- `public_channel` sets the channel number to send BBS ads to.
+- `ad_text` is the message that the sysop_advertise command sends to the public channel.
 
 # Running the program
 
@@ -191,6 +198,7 @@ Today: Using the serial port, but with a powered USB hub between the Raspberry P
 
 # Releases
 
+- **v1.3.0, 2024-12-28:** Handle multiple replies from the same command. Direct messages. Robustness cleanups. Observe more packet types. User bios. Default configuration.
 - **v1.2.0, 2024-12-22:** Supports TCP, too!
 - **v1.1.0, 2024-12-20:** Lots of cleanups and quality-of-life enhancements. A menu system. Spam!
 - **v1.0.0, 2024-12-18:** First official release.

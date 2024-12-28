@@ -1,4 +1,5 @@
 bbscmd := "target/debug/frozenbbs"
+cfgfile := "cargo run config config-path"
 dbfile := "cargo run config db-path"
 
 # Install dev requirements
@@ -26,7 +27,8 @@ install: build_release
 
 # Create the default configuration file
 default_config:
-    cargo run config dump > `cargo run config config-path`
+    mkdir -p $(dirname "`{{ cfgfile }}`")
+    cargo run config dump > "`{{ cfgfile }}`"
 
 # Connect to the database
 db_shell:
