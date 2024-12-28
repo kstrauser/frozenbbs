@@ -190,3 +190,16 @@ impl QueuedMessage {
         formatted_useconds(self.created_at_us)
     }
 }
+
+#[derive(Insertable, Validate)]
+#[diesel(table_name = crate::db::schema::queued_messages)]
+pub struct QueuedMessageNew<'a> {
+    #[validate(range(min = 1))]
+    pub sender_id: i32,
+    #[validate(range(min = 1))]
+    pub recipient_id: i32,
+    #[validate(length(min = 1, max = 200))]
+    pub body: &'a str,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub created_at_us: &'a i64,
+}

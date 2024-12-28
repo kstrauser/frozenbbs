@@ -13,14 +13,14 @@ pub const BBS_TAG: &str = "frozenbbs";
 
 /// Convert a node Id like 12345678 or !abcdef12 to their u32 value.
 pub fn hex_id_to_num(node_id: &str) -> Result<u32, ParseIntError> {
-    Ok(u32::from_str_radix(
+    u32::from_str_radix(
         if node_id.starts_with("!") {
             node_id.strip_prefix("!").unwrap()
         } else {
             node_id
         },
         16,
-    )?)
+    )
 }
 
 /// Convert a u32 node ID to its canonical !abcdef12 format.
