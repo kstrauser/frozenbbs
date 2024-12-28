@@ -154,6 +154,7 @@ Startup stats:
                 log::error!("Unknown sender: {sender:?}");
                 continue;
             };
+            log::info!("Sending a queued message from {sender} to {user}");
             // Construct the message body.
             let out = vec![
                 format!("Message from {} at {}:", sender, message.created_at(),),
