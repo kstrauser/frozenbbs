@@ -1,5 +1,6 @@
 use super::formatted_useconds;
 use super::schema::{board_states, boards, posts, users};
+use crate::hex_id_to_num;
 use diesel::prelude::*;
 use regex::Regex;
 use std::fmt;
@@ -101,6 +102,9 @@ impl fmt::Display for User {
 }
 
 impl User {
+    pub fn node_id_numeric(&self) -> u32 {
+        hex_id_to_num(&self.node_id)
+    }
     pub fn created_at(&self) -> String {
         formatted_useconds(self.created_at_us)
     }
