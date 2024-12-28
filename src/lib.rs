@@ -6,21 +6,18 @@ pub mod paginate;
 pub mod server;
 use config::{Config, ConfigError};
 use serde::{Deserialize, Serialize};
-use std::num::ParseIntError;
 use std::path::PathBuf;
 
 pub const BBS_TAG: &str = "frozenbbs";
 
 /// Convert a node Id like 12345678 or !abcdef12 to their u32 value.
-pub fn hex_id_to_num(node_id: &str) -> Result<u32, ParseIntError> {
-    u32::from_str_radix(
-        if node_id.starts_with("!") {
-            node_id.strip_prefix("!").unwrap()
-        } else {
-            node_id
-        },
-        16,
-    )
+pub fn hex_id_to_num(node_id: &str) -> Option<u32> {
+    let node_id = if node_id.starts_with('!') {
+        node_id.strip_prefix('!').unwrap()
+    } else {
+        node_id
+    };
+    u32::from_str_radix(node_id, 16).ok()
 }
 
 /// Convert a u32 node ID to its canonical !abcdef12 format.
@@ -29,8 +26,8 @@ pub fn num_id_to_hex(node_num: u32) -> String {
 }
 
 /// Convert a possibly mixed case node ID, with or without the leading !, to its canonical format.
-pub fn canonical_node_id(node_id: &str) -> Result<String, ParseIntError> {
-    Ok(num_id_to_hex(hex_id_to_num(node_id)?))
+pub fn canonical_node_id(node_id: &str) -> Option<String> {
+    Some(num_id_to_hex(hex_id_to_num(node_id)?))
 }
 
 #[derive(Debug, Serialize, Deserialize)]

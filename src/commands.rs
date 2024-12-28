@@ -166,7 +166,7 @@ pub fn direct_message(
             None => return NO_SUCH_USER.into(),
         }
     } else {
-        let Ok(node_id) = canonical_node_id(node_id) else {
+        let Some(node_id) = canonical_node_id(node_id) else {
             return INVALID_NODEID.into();
         };
         match users::get(conn, &node_id) {
