@@ -113,7 +113,7 @@ Startup stats:
 
     while let Some(decoded) = decoded_listener.recv().await {
         if let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) {
-            for reply in response.replies.replies {
+            for reply in response.replies.0 {
                 let (channel, destination) = match reply.destination {
                     ReplyDestination::Sender => {
                         (0, PacketDestination::Node(NodeId::new(response.sender)))
