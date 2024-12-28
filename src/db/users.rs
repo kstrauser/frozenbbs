@@ -179,6 +179,20 @@ pub fn get_by_user_id(conn: &mut SqliteConnection, user_id: i32) -> QueryResult<
         .first(conn)
 }
 
+/// Get a user by their short_name field.
+pub fn get_by_short_name(conn: &mut SqliteConnection, short_name: &str) -> Option<User> {
+    let mut users = dsl::users
+        .select(User::as_select())
+        .filter(dsl::short_name.eq(short_name))
+        .load(conn)
+        .expect("should always be able to select users");
+    if users.len() == 1 {
+        users.pop()
+    } else {
+        None
+    }
+}
+
 pub fn enter_board(conn: &mut SqliteConnection, user: &User, board_id: i32) -> QueryResult<User> {
     diesel::update(&user)
         .set(dsl::in_board.eq(board_id))
