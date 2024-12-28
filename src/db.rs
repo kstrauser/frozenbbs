@@ -5,7 +5,7 @@ pub mod queued_messages;
 pub mod users;
 use chrono::{Local, MappedLocalTime, TimeZone, Utc};
 pub use models::{Board, Post, User};
-pub mod models;
+mod models;
 mod schema;
 use crate::BBSConfig;
 use diesel::connection::SimpleConnection;
