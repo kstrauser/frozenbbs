@@ -100,7 +100,7 @@ Startup stats:
         let stream = utils::stream::build_serial_stream(serial_device.clone(), None, None, None)?;
         (decoded_listener, connected_stream_api) = stream_api.connect(stream).await;
     } else {
-        panic!("Exactly one of tcp_address and serial_device must be configured.");
+        panic!("At least one of tcp_address and serial_device must be configured.");
     }
 
     let config_id = utils::generate_rand_id();

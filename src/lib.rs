@@ -77,15 +77,7 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
         .add_source(config::File::from(config_path.clone()).required(false))
         .build()?;
 
-    let config: BBSConfig = config.try_deserialize()?;
-
-    if (config.serial_device.is_some() && config.tcp_address.is_some())
-        || (config.serial_device.is_none() && config.tcp_address.is_none())
-    {
-        panic!("Exactly one of serial_device or tcp_device must be configured.");
-    }
-
-    Ok(config)
+    config.try_deserialize()
 }
 
 /// Describe this system.

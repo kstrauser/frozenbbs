@@ -56,7 +56,7 @@ ad_text = "I'm running a BBS on this node. DM me to get started!"
 - `db_path` is probably usable as-is.
 - `serial_device` may also be OK, although I had to use `/dev/ttyACM0` on my Raspberry Pi.
 - `tcp_address` is the radio's hostname:port to connect to.
-  - Specify _either_ `serial_device` _or_ `tcp_address`, but not both.
+  - If you configure both of these, the server will use `tcp_address`.
 - `sysops` lists usrs who can execute administration commands.
 - `public_channel` sets the channel number to send BBS ads to.
 - `ad_text` is the message that the sysop_advertise command sends to the public channel.
@@ -198,6 +198,7 @@ Today: Using the serial port, but with a powered USB hub between the Raspberry P
 
 # Releases
 
+- **v1.3.1, 2024-12-28:** Fixed a bug where configuring `tcp_address` would conflict with the new default `serial_device`. 🤦‍♂️
 - **v1.3.0, 2024-12-28:** Handle multiple replies from the same command. Direct messages. Robustness cleanups. Observe more packet types. User bios. Default configuration.
 - **v1.2.0, 2024-12-22:** Supports TCP, too!
 - **v1.1.0, 2024-12-20:** Lots of cleanups and quality-of-life enhancements. A menu system. Spam!
