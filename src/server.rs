@@ -1,7 +1,7 @@
 use crate::{
     client::dispatch,
     commands::{self, Replies, ReplyDestination},
-    db::{models::QueuedMessage, queued_messages, stats, users},
+    db::{queued_messages, stats, users},
     hex_id_to_num, num_id_to_hex,
     paginate::{paginate, MAX_LENGTH},
     BBSConfig,
@@ -112,43 +112,62 @@ Startup stats:
     };
 
     while let Some(decoded) = decoded_listener.recv().await {
-        if let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) {
-            for reply in response.replies.0 {
-                let (channel, destination) = match reply.destination {
-                    ReplyDestination::Sender => {
-                        (0, PacketDestination::Node(NodeId::new(response.sender)))
-                    }
-                    ReplyDestination::Broadcast => {
-                        (cfg.public_channel, PacketDestination::Broadcast)
-                    }
-                };
-                for page in paginate(reply.out, MAX_LENGTH) {
-                    stream_api
-                        .send_text(&mut router, page, destination, true, channel.into())
-                        .await?;
-                }
-            }
+        let Some(response) = handle_packet(conn, cfg, &commands, decoded, my_id) else {
+            continue;
+        };
 
-            for message in queued_messages(conn, &num_id_to_hex(response.sender)) {
-                let sender = users::get_by_user_id(conn, message.sender_id);
-                let Ok(sender) = sender else {
-                    log::error!("Unknown sender: {sender:?}");
-                    continue;
-                };
-                let out = vec![
-                    format!("Message from {} at {}:", sender, message.created_at(),),
-                    String::new(),
-                    message.body.to_string(),
-                ];
-                for page in paginate(out, MAX_LENGTH) {
-                    let destination =
-                        PacketDestination::Node(NodeId::new(hex_id_to_num(&sender.node_id)));
-                    stream_api
-                        .send_text(&mut router, page, destination, true, 0.into())
-                        .await?;
+        // Send any replies from the commands the user executed.
+        for reply in response.replies.0 {
+            let (channel, destination) = match reply.destination {
+                ReplyDestination::Sender => {
+                    (0, PacketDestination::Node(NodeId::new(response.sender)))
                 }
-                queued_messages::sent(conn, &message);
+                ReplyDestination::Broadcast => (cfg.public_channel, PacketDestination::Broadcast),
+            };
+            for page in paginate(reply.out, MAX_LENGTH) {
+                stream_api
+                    .send_text(&mut router, page, destination, true, channel.into())
+                    .await?;
             }
+        }
+
+        // Next, send any queued messages to the user.
+
+        let node_id = num_id_to_hex(response.sender);
+        let Ok(user) = users::get(conn, &node_id) else {
+            // This should never happen because we should've upserted the user before calling this.
+            log::debug!("No user matching {node_id}");
+            continue;
+        };
+
+        let queue = queued_messages::get(conn, &user);
+        if queue.is_empty() {
+            log::debug!("No unsent messages for {}", user.id);
+        }
+
+        for message in queue {
+            // If this becomes super popular, consider caching the user objects so we don't look
+            // them up repeatedly in a loop.
+            let sender = users::get_by_user_id(conn, message.sender_id);
+            // This should never happen. If the sender doesn't exist, how'd this message get here?
+            let Ok(sender) = sender else {
+                log::error!("Unknown sender: {sender:?}");
+                continue;
+            };
+            // Construct the message body.
+            let out = vec![
+                format!("Message from {} at {}:", sender, message.created_at(),),
+                String::new(),
+                message.body.to_string(),
+            ];
+            for page in paginate(out, MAX_LENGTH) {
+                let destination =
+                    PacketDestination::Node(NodeId::new(hex_id_to_num(&sender.node_id)));
+                stream_api
+                    .send_text(&mut router, page, destination, true, 0.into())
+                    .await?;
+            }
+            queued_messages::sent(conn, &message);
         }
     }
 
@@ -188,7 +207,12 @@ fn handle_packet(
             sender: meshpacket.from,
             replies,
         });
-    } else if decoded.portnum == PortNum::MapReportApp as i32 {
+    }
+
+    let mut short_name: Option<String> = None;
+    let mut long_name: Option<String> = None;
+
+    if decoded.portnum == PortNum::MapReportApp as i32 {
         let map_report = match MapReport::decode(&decoded.payload[..]) {
             Ok(x) => x,
             Err(err) => {
@@ -199,14 +223,8 @@ fn handle_packet(
                 return None;
             }
         };
-        observe(
-            conn,
-            &num_id_to_hex(meshpacket.from),
-            Some(&map_report.short_name),
-            Some(&map_report.long_name),
-            meshpacket.rx_time,
-            decoded.portnum,
-        );
+        short_name = Some(map_report.short_name);
+        long_name = Some(map_report.long_name);
     } else if decoded.portnum == PortNum::NodeinfoApp as i32 {
         let user = match User::decode(&decoded.payload[..]) {
             Ok(x) => x,
@@ -215,24 +233,23 @@ fn handle_packet(
                 return None;
             }
         };
-        observe(
-            conn,
-            &user.id,
-            Some(&user.short_name),
-            Some(&user.long_name),
-            meshpacket.rx_time,
-            decoded.portnum,
-        );
+        short_name = Some(user.short_name);
+        long_name = Some(user.long_name);
+        assert_eq!(&node_id, &user.id);
     }
     observe(
         conn,
         &node_id,
-        None,
-        None,
+        short_name.as_deref(),
+        long_name.as_deref(),
         meshpacket.rx_time,
         decoded.portnum,
     );
-    None
+
+    Some(Response {
+        sender: meshpacket.from,
+        replies: Vec::new().into(),
+    })
 }
 
 /// Wrapper around calling users::observe
@@ -262,19 +279,4 @@ fn observe(
             log::info!("Observed new via {} at {}: {}", label, rx_time, bbs_user);
         }
     }
-}
-
-/// Send any queued messages for this user.
-fn queued_messages(conn: &mut SqliteConnection, node_id: &str) -> Vec<QueuedMessage> {
-    let Ok(user) = users::get(conn, node_id) else {
-        // This should never happen because we should've upserted the user before calling this.
-        log::debug!("No user matching {node_id}");
-        return Vec::new();
-    };
-    let queue = queued_messages::get(conn, &user);
-    if queue.is_empty() {
-        log::debug!("No unsent messages for {}", user.id);
-        return Vec::new();
-    }
-    return queue;
 }
