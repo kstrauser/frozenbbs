@@ -180,3 +180,9 @@ pub struct QueuedMessage {
     pub created_at_us: i64,
     pub sent_at_us: Option<i64>,
 }
+
+impl QueuedMessage {
+    pub fn created_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
+}

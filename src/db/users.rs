@@ -171,6 +171,14 @@ pub fn get(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
         .first(conn)
 }
 
+/// Get a user by their id field.
+pub fn get_by_user_id(conn: &mut SqliteConnection, user_id: i32) -> QueryResult<User> {
+    dsl::users
+        .select(User::as_select())
+        .filter(dsl::id.eq(user_id))
+        .first(conn)
+}
+
 pub fn enter_board(conn: &mut SqliteConnection, user: &User, board_id: i32) -> QueryResult<User> {
     diesel::update(&user)
         .set(dsl::in_board.eq(board_id))
