@@ -44,7 +44,7 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         packet: FromRadio,
     ) -> Result<HandlerMetadata, TestRouterError> {
         // Check the packet
-        log::debug!("{:#?}", packet);
+        log::debug!("handle_packet_from_radio: {:#?}", packet);
 
         Ok(HandlerMetadata {})
     }
@@ -54,7 +54,7 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         packet: MeshPacket,
     ) -> Result<HandlerMetadata, TestRouterError> {
         // Check the packet
-        log::debug!("{:#?}", packet);
+        log::debug!("handle_mesh_packet: {:#?}", packet);
 
         Ok(HandlerMetadata {})
     }
@@ -161,8 +161,7 @@ Startup stats:
                 message.body.to_string(),
             ];
             for page in paginate(out, MAX_LENGTH) {
-                let destination =
-                    PacketDestination::Node(NodeId::new(hex_id_to_num(&sender.node_id)));
+                let destination = PacketDestination::Node(NodeId::new(user.node_id_numeric()));
                 stream_api
                     .send_text(&mut router, page, destination, true, 0.into())
                     .await?;
@@ -190,7 +189,7 @@ fn handle_packet(
         return None;
     };
 
-    let node_id = num_id_to_hex(meshpacket.from);
+    let mut user_id = num_id_to_hex(meshpacket.from);
 
     if decoded.portnum == PortNum::TextMessageApp as i32 && meshpacket.to == my_id {
         let command = match std::str::from_utf8(&decoded.payload) {
@@ -200,8 +199,8 @@ fn handle_packet(
                 return None;
             }
         };
-        log::debug!("Received command from {}: <{}>", node_id, command);
-        let replies = dispatch(conn, cfg, &node_id, menus, command.trim());
+        log::debug!("Received command from {}: <{}>", user_id, command);
+        let replies = dispatch(conn, cfg, &user_id, menus, command.trim());
         log::debug!("Result: {:?}", &replies);
         return Some(Response {
             sender: meshpacket.from,
@@ -233,13 +232,13 @@ fn handle_packet(
                 return None;
             }
         };
+        user_id = user.id;
         short_name = Some(user.short_name);
         long_name = Some(user.long_name);
-        assert_eq!(&node_id, &user.id);
     }
     observe(
         conn,
-        &node_id,
+        &user_id,
         short_name.as_deref(),
         long_name.as_deref(),
         meshpacket.rx_time,
