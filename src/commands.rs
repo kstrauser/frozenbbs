@@ -83,6 +83,8 @@ pub fn state_describe(
     }
     linefeed!(out);
     out.push(system_info(cfg));
+    linefeed!(out);
+    out.push("Send 'h' to show help options.".to_string());
     out.into()
 }
 
