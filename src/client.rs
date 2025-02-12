@@ -17,6 +17,7 @@ pub fn dispatch(
     node_id: &str,
     menus: &Menus,
     cmdline: &str,
+    local: bool,
 ) -> Replies {
     let (mut user, seen) = users::record(conn, node_id).unwrap();
     if seen {
@@ -29,12 +30,12 @@ pub fn dispatch(
             system_info(cfg),
             String::new(),
         ];
-        let state = available_state(cfg, &user);
+        let state = available_state(cfg, &user, local);
         out.extend(help_toplevel(&state, menus));
         return out.into();
     }
 
-    let state = available_state(cfg, &user);
+    let state = available_state(cfg, &user, local);
 
     // Special handling for help requests
     let help_cmdline = cmdline.to_lowercase();
@@ -105,13 +106,27 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
             println!("Disconnected.");
             return;
         }
-        print_replies(dispatch(conn, cfg, node_id, &commands, command.trim()));
+        print_replies(dispatch(
+            conn,
+            cfg,
+            node_id,
+            &commands,
+            command.trim(),
+            true,
+        ));
     }
 }
 
 /// Run a single command.
 pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, command: &str) {
-    print_replies(dispatch(conn, cfg, node_id, &command_structure(), command));
+    print_replies(dispatch(
+        conn,
+        cfg,
+        node_id,
+        &command_structure(),
+        command,
+        true,
+    ));
 }
 
 fn print_replies(replies: Replies) {

@@ -91,13 +91,15 @@ pub fn help_menu(state: &AvailableState, menu: &Menu) -> Vec<String> {
 /// Information about the user's state during a single command.
 pub struct AvailableState {
     in_board: bool,
+    is_local: bool,
     is_sysop: bool,
 }
 
 /// Pre-compute values used by available_* functions so we're not repeatedly hitting the database.
-pub fn available_state(cfg: &BBSConfig, user: &User) -> AvailableState {
+pub fn available_state(cfg: &BBSConfig, user: &User, local: bool) -> AvailableState {
     AvailableState {
         in_board: user.in_board.is_some(),
+        is_local: local,
         is_sysop: cfg.sysops.contains(&user.node_id),
     }
 }
@@ -107,12 +109,17 @@ fn available_always(_state: &AvailableState) -> bool {
     true
 }
 
+/// These commands are available to local users.
+fn available_locally(state: &AvailableState) -> bool {
+    state.is_local
+}
+
 /// These commands are available to sysops.
 fn available_to_sysops(state: &AvailableState) -> bool {
     state.is_sysop
 }
 
-/// Return whether the user is in a message board.
+/// These commands are available when the user is in a message board.
 fn available_in_board(state: &AvailableState) -> bool {
     state.in_board
 }
@@ -270,6 +277,18 @@ pub fn command_structure() -> Menus {
         ],
     };
 
+    let local_menu = Menu {
+        name: "Local".to_string(),
+        help_suffix: "L".to_string(),
+        commands: vec![Command {
+            arg: "LA".to_string(),
+            help: "Send an advertisement to the public channel.".to_string(),
+            pattern: make_pattern("la"),
+            available: available_locally,
+            func: sysop::sysop_advertise,
+        }],
+    };
+
     let sysop_menu = Menu {
         name: "Sysop".to_string(),
         help_suffix: "!".to_string(),
@@ -282,5 +301,5 @@ pub fn command_structure() -> Menus {
         }],
     };
 
-    vec![general_menu, board_menu, sysop_menu]
+    vec![general_menu, local_menu, board_menu, sysop_menu]
 }

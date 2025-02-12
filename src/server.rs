@@ -210,7 +210,7 @@ fn handle_packet(
             }
         };
         log::debug!("Received command from {}: <{}>", user_id, command);
-        let replies = dispatch(conn, cfg, &user_id, menus, command.trim());
+        let replies = dispatch(conn, cfg, &user_id, menus, command.trim(), false);
         log::debug!("Result: {:?}", &replies);
         return Some(Response {
             sender: meshpacket.from,
