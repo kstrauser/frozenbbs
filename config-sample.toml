@@ -1,3 +1,4 @@
+# db_path = "/path/to/frozenbbs/frozenbbs.db"
 bbs_name = "My Frozen BBS❅"
 my_id = "!cafeb33d"
 serial_device = "/dev/ttyUSB0"
@@ -5,4 +6,128 @@ tcp_address = "localhost:4403"
 sysops = []
 public_channel = 0
 ad_text = "I'm running a BBS on this node. DM me to get started!"
-# db_path = "/path/to/frozenbbs/frozenbbs.db"
+
+[menus.General]
+suffix = "G"
+
+[[menus.General.commands]]
+arg = "?"
+help = "Who and where am I?"
+pattern = '\?'
+available = "always"
+func = "state::state_describe"
+
+[[menus.General.commands]]
+arg = "U"
+help = "Recently active users"
+pattern = "u"
+available = "always"
+func = "user::user_active"
+
+[[menus.General.commands]]
+arg = "S"
+help = "Recently seen users"
+pattern = "s"
+available = "always"
+func = "user::user_seen"
+
+[[menus.General.commands]]
+arg = "DM user msg"
+help = "Send a message"
+pattern = '(?s)dm\s*(\S+)\s+(.+?)\s*'
+available = "always"
+func = "dm::direct_message"
+
+[[menus.General.commands]]
+arg = "BIO"
+help = "Show your bio"
+pattern = "bio"
+available = "always"
+func = "user::user_bio_read"
+
+[[menus.General.commands]]
+arg = "BIO msg"
+help = "Update your bio"
+pattern = '(?s)bio\s*(.+?)\s*'
+available = "always"
+func = "user::user_bio_write"
+
+[menus.Board]
+suffix = "B"
+
+[[menus.Board.commands]]
+arg = "B"
+help = "Board list"
+pattern = "b"
+available = "available_always"
+func = "board::board_lister"
+
+[[menus.Board.commands]]
+arg = "Bn"
+help = "Enter board #n"
+pattern = 'b\s*(\d+)'
+available = "available_always"
+func = "board::board_enter"
+
+[[menus.Board.commands]]
+arg = "Q"
+help = "Read the next unread message in any board"
+pattern = "q"
+available = "available_always"
+func = "board::board_quick"
+
+[[menus.Board.commands]]
+arg = "P"
+help = "Read the previous message"
+pattern = "p"
+available = "available_in_board"
+func = "board::board_previous"
+
+[[menus.Board.commands]]
+arg = "R"
+help = "Read the current message"
+pattern = "r"
+available = "available_in_board"
+func = "board::board_current"
+
+[[menus.Board.commands]]
+arg = "N"
+help = "Read the next message"
+pattern = "n"
+available = "available_in_board"
+func = "board::board_next"
+
+[[menus.Board.commands]]
+arg = "W msg"
+help = "Write a new message"
+pattern = '(?s)w\s*(.+?)\s*'
+available = "available_in_board"
+func = "board::board_write"
+
+[[menus.Board.commands]]
+arg = "BA"
+help = "Show the current message's author."
+pattern = "ba"
+available = "available_in_board"
+func = "board::board_author"
+
+[menus.Local]
+suffix = "L"
+
+[[menus.Local.commands]]
+arg = "LA"
+help = "Send an advertisement to the public channel."
+pattern = "la"
+available = "available_locally"
+func = "sysop::sysop_advertise"
+
+[menus.Sysop]
+suffix = "!"
+
+[[menus.Sysop.commands]]
+arg = "!A"
+help = "Send an advertisement to the public channel."
+pattern = "!a"
+available = "available_to_sysops"
+func = "sysop::sysop_advertise"
+
