@@ -25,10 +25,12 @@ build_release:
 install: build_release
     cargo install --path .
 
-# Create the default configuration file
-default_config:
+# Install the default configuration file
+install_config:
     mkdir -p $(dirname "`{{ cfgfile }}`")
-    cargo run config dump > "`{{ cfgfile }}`"
+    cp config-sample.toml "`{{ cfgfile }}`"
+    echo "db_path = \"`{{ dbfile }}`\"" >> "`{{ cfgfile }}`"
+    echo "Edit `{{ cfgfile }}` to customize your BBS."
 
 # Connect to the database
 db_shell:

@@ -33,12 +33,12 @@ $ just db_fixture
 
 # Configuring
 
-`just default_config` will create a sample config file:
+`just install_config` will create a sample config file:
 
 ```shell
-$ just default_config
-mkdir -p $(dirname "`cargo run config config-path`")
-cargo run config dump > "`cargo run config config-path`"
+$ just install_config
+[...]
+Edit /path/to/frozenbbs/config.toml to customize your BBS.
 ```
 
 Run `cargo run config config-path` to get the path to the config file. Edit it to at least set `my_id` to the node ID of your radio. `frozenbbs` will pester you until you do this.
