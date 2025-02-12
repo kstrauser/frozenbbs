@@ -1,6 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{
-    admin, canonical_node_id, client, config_load, config_path, db, server, FAKE_MY_ID,
+    admin, canonical_node_id, client, config_load, config_path, db, default_db_path, server,
+    FAKE_MY_ID,
 };
 use log::LevelFilter;
 
@@ -154,22 +155,36 @@ enum UserCommands {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let cfg = config_load().expect("the default configuration should always be available");
 
-    // Process commands to show configuration information before connecting to the database.
+    // Process commands to show configuration information before the system is fully configured.
     if let Some(Subsystems::Config { config_command }) = &cli.command {
         match config_command {
             Some(ConfigCommands::ConfigPath {}) => println!("{}", config_path().display()),
-            Some(ConfigCommands::Dump {}) => println!(
-                "{}",
-                toml::to_string(&cfg)
-                    .expect("toml should be able to serialize a simple config object")
-            ),
-            Some(ConfigCommands::DbPath {}) => println!("{}", &cfg.db_path),
+            Some(ConfigCommands::Dump {}) => {
+                let cfg = config_load().expect("the system should be configured");
+                println!(
+                    "{}",
+                    toml::to_string(&cfg)
+                        .expect("toml should be able to serialize a simple config object")
+                );
+            }
+            Some(ConfigCommands::DbPath {}) => {
+                let cfg = config_load();
+                if let Ok(cfg) = cfg {
+                    println!("{}", &cfg.db_path);
+                } else {
+                    eprintln!(
+                        "Giving the default database path because the config file is missing."
+                    );
+                    println!("{}", default_db_path().display());
+                }
+            }
             None => {}
         }
         return;
     };
+
+    let cfg = config_load().expect("the default configuration should always be available");
 
     // Crank up the BBS and Meshtastic logging as verbosity increases.
     let (bbs_level, radio_level) = match cli.verbose {
@@ -191,7 +206,7 @@ async fn main() {
         eprintln!(
             "!!!!!!!!!
 You are using the default value for `my_id`.
-        
+
 Edit \"{}\" to set it to your radio's node ID.
 !!!!!!!!",
             config_path().display(),
