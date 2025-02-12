@@ -4,7 +4,7 @@ pub mod commands;
 pub mod db;
 pub mod paginate;
 pub mod server;
-use config::{Config, ConfigError};
+use config::{Config, ConfigError, Map};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -44,6 +44,22 @@ pub struct BBSConfig {
     sysops: Vec<String>,
     public_channel: u32,
     ad_text: String,
+    menus: Map<String, MenuConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MenuConfig {
+    suffix: String,
+    commands: Vec<CommandConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CommandConfig {
+    arg: String,
+    help: String,
+    pattern: String,
+    available: String,
+    func: String,
 }
 
 pub fn config_path() -> PathBuf {
