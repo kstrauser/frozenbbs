@@ -1,0 +1,8 @@
+bbs_name = "My Frozen BBS❅"
+my_id = "!cafeb33d"
+serial_device = "/dev/ttyUSB0"
+tcp_address = "localhost:4403"
+sysops = []
+public_channel = 0
+ad_text = "I'm running a BBS on this node. DM me to get started!"
+# db_path = "/path/to/frozenbbs/frozenbbs.db"

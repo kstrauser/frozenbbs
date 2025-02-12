@@ -64,16 +64,6 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
     let config_path = config_path();
 
     let config = Config::builder()
-        .set_default("bbs_name", "My Frozen BBS❅")?
-        .set_default("my_id", FAKE_MY_ID)?
-        .set_default("db_path", default_db_path().display().to_string())?
-        .set_default("serial_device", "/dev/ttyUSB0")?
-        .set_default("sysops", Vec::<String>::new())?
-        .set_default("public_channel", 0)?
-        .set_default(
-            "ad_text",
-            "I'm running a BBS on this node. DM me to get started!",
-        )?
         .add_source(config::File::from(config_path.clone()).required(false))
         .build()?;
 
