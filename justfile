@@ -28,8 +28,8 @@ install: build_release
 # Install the default configuration file
 install_config:
     mkdir -p $(dirname "`{{ cfgfile }}`")
-    cp config-sample.toml "`{{ cfgfile }}`"
-    echo "db_path = \"`{{ dbfile }}`\"" >> "`{{ cfgfile }}`"
+    echo "db_path = \"`{{ dbfile }}`\"" > "`{{ cfgfile }}`"
+    cat config-sample.toml >> "`{{ cfgfile }}`"
     echo "Edit `{{ cfgfile }}` to customize your BBS."
 
 # Connect to the database
