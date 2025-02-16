@@ -50,6 +50,8 @@ serial_device = "/dev/ttyUSB0" # *or* tcp_address = "myradio.example.com:4403"
 sysops = ["!cafeb33d"]
 public_channel = 0
 ad_text = "I'm running a BBS on this node. DM me to get started!"
+
+[menus...]
 ```
 
 - `my_id` should be the hex name of the Meshtastic node you'll be running the BBS on. It will only process messages which are addressed to that ID.
@@ -198,6 +200,7 @@ Today: Using the serial port, but with a powered USB hub between the Raspberry P
 
 # Releases
 
+- **v1.4.0, 2025-02-15:** Configure the menu structure in `config.toml`, not code. You'll need to merge the contents of `config-saml.toml` into your own config file to before the BBS will start.
 - **v1.3.2, 2024-12-28:** _Important fix:_ Fixed a loop where the BBS tried to message itself.
 - **v1.3.1, 2024-12-28:** Fixed a bug where configuring `tcp_address` would conflict with the new default `serial_device`. 🤦‍♂️
 - **v1.3.0, 2024-12-28:** Handle multiple replies from the same command. Direct messages. Robustness cleanups. Observe more packet types. User bios. Default configuration.
