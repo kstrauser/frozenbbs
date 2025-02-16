@@ -8,126 +8,125 @@ public_channel = 0
 ad_text = "I'm running a BBS on this node. DM me to get started!"
 
 [menus.General]
-suffix = "G"
+help_suffix = "G"
 
 [[menus.General.commands]]
 arg = "?"
 help = "Who and where am I?"
-pattern = '\?'
+pattern = "\\?"
 available = "always"
-func = "state::state_describe"
+func = "state::describe"
 
 [[menus.General.commands]]
 arg = "U"
 help = "Recently active users"
 pattern = "u"
 available = "always"
-func = "user::user_active"
+func = "user::active"
 
 [[menus.General.commands]]
 arg = "S"
 help = "Recently seen users"
 pattern = "s"
 available = "always"
-func = "user::user_seen"
+func = "user::seen"
 
 [[menus.General.commands]]
 arg = "DM user msg"
 help = "Send a message"
-pattern = '(?s)dm\s*(\S+)\s+(.+?)\s*'
+pattern = "(?s)dm\\s*(\\S+)\\s+(.+?)\\s*"
 available = "always"
-func = "dm::direct_message"
+func = "dm::send"
 
 [[menus.General.commands]]
 arg = "BIO"
 help = "Show your bio"
 pattern = "bio"
 available = "always"
-func = "user::user_bio_read"
+func = "user::bio_read"
 
 [[menus.General.commands]]
 arg = "BIO msg"
 help = "Update your bio"
-pattern = '(?s)bio\s*(.+?)\s*'
+pattern = "(?s)bio\\s*(.+?)\\s*"
 available = "always"
-func = "user::user_bio_write"
+func = "user::bio_write"
 
 [menus.Board]
-suffix = "B"
+help_suffix = "B"
 
 [[menus.Board.commands]]
 arg = "B"
 help = "Board list"
 pattern = "b"
-available = "available_always"
-func = "board::board_lister"
+available = "always"
+func = "board::lister"
 
 [[menus.Board.commands]]
 arg = "Bn"
 help = "Enter board #n"
-pattern = 'b\s*(\d+)'
-available = "available_always"
-func = "board::board_enter"
+pattern = "b\\s*(\\d+)"
+available = "always"
+func = "board::enter"
 
 [[menus.Board.commands]]
 arg = "Q"
 help = "Read the next unread message in any board"
 pattern = "q"
-available = "available_always"
-func = "board::board_quick"
+available = "always"
+func = "board::quick"
 
 [[menus.Board.commands]]
 arg = "P"
 help = "Read the previous message"
 pattern = "p"
-available = "available_in_board"
-func = "board::board_previous"
+available = "in_board"
+func = "board::previous"
 
 [[menus.Board.commands]]
 arg = "R"
 help = "Read the current message"
 pattern = "r"
-available = "available_in_board"
-func = "board::board_current"
+available = "in_board"
+func = "board::current"
 
 [[menus.Board.commands]]
 arg = "N"
 help = "Read the next message"
 pattern = "n"
-available = "available_in_board"
-func = "board::board_next"
+available = "in_board"
+func = "board::next"
 
 [[menus.Board.commands]]
 arg = "W msg"
 help = "Write a new message"
-pattern = '(?s)w\s*(.+?)\s*'
-available = "available_in_board"
-func = "board::board_write"
+pattern = "(?s)w\\s*(.+?)\\s*"
+available = "in_board"
+func = "board::write"
 
 [[menus.Board.commands]]
 arg = "BA"
 help = "Show the current message's author."
 pattern = "ba"
-available = "available_in_board"
-func = "board::board_author"
+available = "in_board"
+func = "board::author"
 
 [menus.Local]
-suffix = "L"
+help_suffix = "L"
 
 [[menus.Local.commands]]
 arg = "LA"
 help = "Send an advertisement to the public channel."
 pattern = "la"
-available = "available_locally"
-func = "sysop::sysop_advertise"
+available = "local"
+func = "sysop::advertise"
 
 [menus.Sysop]
-suffix = "!"
+help_suffix = "!"
 
 [[menus.Sysop.commands]]
 arg = "!A"
 help = "Send an advertisement to the public channel."
 pattern = "!a"
-available = "available_to_sysops"
-func = "sysop::sysop_advertise"
-
+available = "sysop"
+func = "sysop::advertise"
