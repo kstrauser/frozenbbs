@@ -25,7 +25,7 @@ fn post_print(post: &Post, user: &User) -> Vec<String> {
 }
 
 /// List all the boards.
-pub fn board_lister(
+pub fn lister(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -54,7 +54,7 @@ pub fn board_lister(
 
 /// Enter a board.
 #[allow(clippy::needless_pass_by_value)]
-pub fn board_enter(
+pub fn enter(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -76,7 +76,7 @@ pub fn board_enter(
 }
 
 /// Get the current message in the board.
-pub fn board_current(
+pub fn current(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -94,7 +94,7 @@ pub fn board_current(
 }
 
 /// Get the previous message in the board.
-pub fn board_previous(
+pub fn previous(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -113,7 +113,7 @@ pub fn board_previous(
 }
 
 /// Get the next message in the board.
-pub fn board_next(
+pub fn next(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -132,7 +132,7 @@ pub fn board_next(
 }
 
 ///Get the next unread message in any board.
-pub fn board_quick(
+pub fn quick(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -177,7 +177,7 @@ pub fn board_quick(
 
 /// Add a new post to the board.
 #[allow(clippy::needless_pass_by_value)]
-pub fn board_write(
+pub fn write(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -195,7 +195,7 @@ pub fn board_write(
 
 /// Show information about the current post's author
 #[allow(clippy::needless_pass_by_value)]
-pub fn board_author(
+pub fn author(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,

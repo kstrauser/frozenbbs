@@ -4,7 +4,7 @@ use crate::{system_info, BBSConfig};
 use diesel::SqliteConnection;
 
 /// Send a BBS advertisement to the main channel.
-pub fn sysop_advertise(
+pub fn advertise(
     _conn: &mut SqliteConnection,
     cfg: &BBSConfig,
     _user: &mut User,

@@ -8,7 +8,7 @@ const NO_SUCH_USER: &str = "That user does not exist.";
 
 /// Message another user
 #[allow(clippy::needless_pass_by_value)]
-pub fn direct_message(
+pub fn send(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
