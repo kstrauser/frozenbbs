@@ -17,7 +17,7 @@ serde = { version = "1.0.216", features = ["derive"] }
 simple_logger = "5.0.0"
 tokio = "1.42.0"
 toml = "0.8.19"
-validator = { version = "0.19", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 xdg = "2.5.2"
 
 [build-dependencies]
