@@ -44,22 +44,22 @@ pub struct BBSConfig {
     sysops: Vec<String>,
     public_channel: u32,
     ad_text: String,
-    menus: Map<String, MenuConfig>,
+    pub menus: Map<String, MenuConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MenuConfig {
-    suffix: String,
-    commands: Vec<CommandConfig>,
+    pub help_suffix: String,
+    pub commands: Vec<CommandConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CommandConfig {
-    arg: String,
-    help: String,
-    pattern: String,
-    available: String,
-    func: String,
+    pub arg: String,
+    pub help: String,
+    pub pattern: String,
+    pub available: String,
+    pub func: String,
 }
 
 pub fn config_path() -> PathBuf {

@@ -81,7 +81,7 @@ pub async fn event_loop(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let commands = commands::command_structure();
+    let commands = commands::command_structure(&cfg);
     let stream_api = StreamApi::new();
 
     let connected_stream_api;
