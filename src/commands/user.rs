@@ -6,7 +6,7 @@ use diesel::SqliteConnection;
 const NO_BIO: &str = "You haven't set a bio.";
 
 /// Show the most recently active users.
-pub fn user_active(
+pub fn active(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     _user: &mut User,
@@ -22,7 +22,7 @@ pub fn user_active(
 }
 
 /// Show the most recently seen users.
-pub fn user_seen(
+pub fn seen(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     _user: &mut User,
@@ -38,7 +38,7 @@ pub fn user_seen(
 }
 
 /// Read the user's bio.
-pub fn user_bio_read(
+pub fn bio_read(
     _conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,
@@ -54,7 +54,7 @@ pub fn user_bio_read(
 
 /// Update the user's bio.
 #[allow(clippy::needless_pass_by_value)]
-pub fn user_bio_write(
+pub fn bio_write(
     conn: &mut SqliteConnection,
     _cfg: &BBSConfig,
     user: &mut User,

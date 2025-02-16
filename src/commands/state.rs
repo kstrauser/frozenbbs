@@ -6,7 +6,7 @@ use diesel::SqliteConnection;
 const INVALID_BOARD: &str = "That's not a valid board number.";
 
 /// Tell the user where they are.
-pub fn state_describe(
+pub fn describe(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
     user: &mut User,
