@@ -196,7 +196,22 @@ Second try: Use MQTT. I was _so_ close to having this work, but it turns out tha
 
 Third try: OK, fine. We'll make serial work. More people have serial connections than Ethernet anyway, so that's likely a good idea anyway. But here's a fun fact you might not know or appreciate -- I certainly didnt!: the Raspberry Pi's USB port doesn't reliably put out enough power to support a radio, its transmitter, its Ethernet module, and lots of serial output all at the same time. Oh look, corrupted packets! Transmitter hangs! Ethernet freezing! Fun for the whole family!
 
-Today: Using the serial port, but with a powered USB hub between the Raspberry Pi and the RAK4631 so that the hub is providing the necessary wattage. Finally, after all this time, I can fully operate all the features of the radio as documented _and_ running Frozen BBS without the whole thing locking up ever half an hour. Success! I have this setup running live today.
+Fourth try, success: Using the serial port, but with a powered USB hub between the Raspberry Pi and the RAK4631 so that the hub is providing the necessary wattage. Finally, after all this time, I could fully operate all the features of the radio as documented _and_ running Frozen BBS without the whole thing locking up ever half an hour. Victory!
+
+Today: After running that setup for a while and convincing myself that it's stable, I switched back to connecting to the radio via Ethernet. Because of [some glitch](https://github.com/meshtastic/firmware/issues/5754) somewhere, I have to leave `meshtastic --noproto` running in the background or else the radio eventually stops sending Ethernet packets. I _think_ this is a software issue and not a power problem (because of the powered USB hub) but can't prove it. At least it's an easy workaround, if conceptually annoying. I have this setup running live today.
+
+# A completely working setup
+
+These are the important parts of my BBS system. This is what I'd order if I had to build it again today and didn't have time to research newer alternatives. I'm leaving out commodity stuff like power supplies, Ethernet cables, and other things that are readily available.
+
+- [WisBlock Meshtastic Starter Kit](https://store.rakwireless.com/products/wisblock-meshtastic-starter-kit?variant=43884034654406) with RAK19007 base board and RAK4631 core module. You don't need the RAK12500 GPS module if you're installing this in a fixed location. Same for the RAK1904 acceleration sensor, unless you want to try detecting earthquakes. The RAK1921 isn't helpful for me since the radio lives in my attic where I'm almost never physically looking at it.
+- [RAK13800](https://store.rakwireless.com/products/rak13800-wisblock-ethernet-interface) Ethernet module. The BBS works fine over serial but I like connecting to MQTT.
+- [Raspberry Pi 4](https://amzn.to/3ES5cD5) 2GB model to run Frozen BBS. The 4GB model was quite a bit pricier on the day I bought it but I wish I'd splurged. In general, get as much RAM as you can afford.
+- [8dBi gain outdoor antenna](https://amzn.to/3ES5cD5) to reach distant nodes. This was right for _my_ setup but may be wrong for yours. For example, the radiated pattern of this one is somewhat flattened so that it does better for distant nodes than ones nearby but much lower or higher in altitude. I include this link as an example of something that works, but there are many other options.
+- [Outdoor antenna pole mount](https://amzn.to/3CTgDKe) for the above.
+- [Low-loss antenna cable](https://amzn.to/414XFZ8) running from the antenna into my attic.
+- [Short antenna cable](https://amzn.to/4hGVHFu) to connect the radio to the end of the above cable.
+- [Powered USB hub](https://amzn.to/3EHj8jl) sitting between the radio and the Raspberry Pi.
 
 # Releases
 
