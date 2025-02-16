@@ -164,142 +164,54 @@ fn make_pattern(pattern: &str) -> Regex {
         .unwrap()
 }
 
-pub fn command_structure() -> Menus {
-    let general_menu = Menu {
-        name: "General".to_string(),
-        help_suffix: "G".to_string(),
-        commands: vec![
-            Command {
-                arg: "?".to_string(),
-                help: "Who and where am I?".to_string(),
-                pattern: make_pattern(r"\?"),
-                available: available_always,
-                func: state::state_describe,
-            },
-            Command {
-                arg: "U".to_string(),
-                help: "Recently active users".to_string(),
-                pattern: make_pattern("u"),
-                available: available_always,
-                func: user::user_active,
-            },
-            Command {
-                arg: "S".to_string(),
-                help: "Recently seen users".to_string(),
-                pattern: make_pattern("s"),
-                available: available_always,
-                func: user::user_seen,
-            },
-            Command {
-                arg: "DM user msg".to_string(),
-                help: "Send a message".to_string(),
-                pattern: make_pattern(r"(?s)dm\s*(\S+)\s+(.+?)\s*"),
-                available: available_always,
-                func: dm::direct_message,
-            },
-            Command {
-                arg: "BIO".to_string(),
-                help: "Show your bio".to_string(),
-                pattern: make_pattern("bio"),
-                available: available_always,
-                func: user::user_bio_read,
-            },
-            Command {
-                arg: "BIO msg".to_string(),
-                help: "Update your bio".to_string(),
-                pattern: make_pattern(r"(?s)bio\s*(.+?)\s*"),
-                available: available_always,
-                func: user::user_bio_write,
-            },
-        ],
-    };
+/// Build a set of menus and their commands from the configuration.
+pub fn command_structure(cfg: &BBSConfig) -> Menus {
+    let mut menus = Vec::new();
 
-    let board_menu = Menu {
-        name: "Board".to_string(),
-        help_suffix: "B".to_string(),
-        commands: vec![
-            Command {
-                arg: "B".to_string(),
-                help: "Board list".to_string(),
-                pattern: make_pattern("b"),
-                available: available_always,
-                func: board::board_lister,
-            },
-            Command {
-                arg: "Bn".to_string(),
-                help: "Enter board #n".to_string(),
-                pattern: make_pattern(r"b\s*(\d+)"),
-                available: available_always,
-                func: board::board_enter,
-            },
-            Command {
-                arg: "Q".to_string(),
-                help: "Read the next unread message in any board".to_string(),
-                pattern: make_pattern("q"),
-                available: available_always,
-                func: board::board_quick,
-            },
-            Command {
-                arg: "P".to_string(),
-                help: "Read the previous message".to_string(),
-                pattern: make_pattern("p"),
-                available: available_in_board,
-                func: board::board_previous,
-            },
-            Command {
-                arg: "R".to_string(),
-                help: "Read the current message".to_string(),
-                pattern: make_pattern("r"),
-                available: available_in_board,
-                func: board::board_current,
-            },
-            Command {
-                arg: "N".to_string(),
-                help: "Read the next message".to_string(),
-                pattern: make_pattern("n"),
-                available: available_in_board,
-                func: board::board_next,
-            },
-            Command {
-                arg: "W msg".to_string(),
-                help: "Write a new message".to_string(),
-                pattern: make_pattern(r"(?s)w\s*(.+?)\s*"),
-                available: available_in_board,
-                func: board::board_write,
-            },
-            Command {
-                arg: "BA".to_string(),
-                help: "Show the current message's author.".to_string(),
-                pattern: make_pattern("ba"),
-                available: available_in_board,
-                func: board::board_author,
-            },
-        ],
-    };
+    for (name, menu) in cfg.menus.iter() {
+        let commands: Vec<Command> = menu
+            .commands
+            .iter()
+            .map(|command| Command {
+                arg: command.arg.clone(),
+                help: command.help.clone(),
+                pattern: make_pattern(&command.pattern),
+                available: match command.available.as_str() {
+                    "always" => available_always,
+                    "in_board" => available_in_board,
+                    "local" => available_locally,
+                    "sysop" => available_to_sysops,
+                    _ => panic!("Unknown command availability: {}", command.available),
+                },
+                func: match command.func.as_str() {
+                    "board::author" => board::board_author,
+                    "board::current" => board::board_current,
+                    "board::enter" => board::board_enter,
+                    "board::lister" => board::board_lister,
+                    "board::next" => board::board_next,
+                    "board::previous" => board::board_previous,
+                    "board::quick" => board::board_quick,
+                    "board::write" => board::board_write,
+                    "dm::send" => dm::direct_message,
+                    "state::describe" => state::state_describe,
+                    "sysop::advertise" => sysop::sysop_advertise,
+                    "user::active" => user::user_active,
+                    "user::bio_read" => user::user_bio_read,
+                    "user::bio_write" => user::user_bio_write,
+                    "user::seen" => user::user_seen,
+                    _ => panic!("Unknown command function: {}", command.func),
+                },
+            })
+            .collect();
 
-    let local_menu = Menu {
-        name: "Local".to_string(),
-        help_suffix: "L".to_string(),
-        commands: vec![Command {
-            arg: "LA".to_string(),
-            help: "Send an advertisement to the public channel.".to_string(),
-            pattern: make_pattern("la"),
-            available: available_locally,
-            func: sysop::sysop_advertise,
-        }],
-    };
+        let menu = Menu {
+            name: name.to_string(),
+            help_suffix: menu.help_suffix.clone(),
+            commands,
+        };
 
-    let sysop_menu = Menu {
-        name: "Sysop".to_string(),
-        help_suffix: "!".to_string(),
-        commands: vec![Command {
-            arg: "!A".to_string(),
-            help: "Send an advertisement to the public channel.".to_string(),
-            pattern: make_pattern("!a"),
-            available: available_to_sysops,
-            func: sysop::sysop_advertise,
-        }],
-    };
+        menus.push(menu);
+    }
 
-    vec![general_menu, local_menu, board_menu, sysop_menu]
+    menus
 }
