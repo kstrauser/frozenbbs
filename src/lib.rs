@@ -26,7 +26,7 @@ pub fn hex_id_to_num(node_id: &str) -> Option<u32> {
 
 /// Convert a u32 node ID to its canonical !abcdef12 format.
 pub fn num_id_to_hex(node_num: u32) -> String {
-    format!("!{node_num:x}")
+    format!("!{node_num:08x}")
 }
 
 /// Convert a possibly mixed case node ID, with or without the leading !, to its canonical format.
@@ -104,4 +104,14 @@ macro_rules! linefeed {
     ($x:expr) => {
         $x.push("".to_string());
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_id_with_leading_zero() {
+        assert_eq!(num_id_to_hex(0x00010203), "!00010203");
+    }
 }
