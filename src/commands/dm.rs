@@ -5,12 +5,13 @@ use diesel::SqliteConnection;
 
 const INVALID_NODEID: &str = "The given address is invalid.";
 const NO_SUCH_USER: &str = "That user does not exist.";
+const WILL_NOT_MESSAGE_MYSELF: &str = "You cannot send a direct message to this BBS.";
 
 /// Message another user
 #[allow(clippy::needless_pass_by_value)]
 pub fn send(
     conn: &mut SqliteConnection,
-    _cfg: &BBSConfig,
+    cfg: &BBSConfig,
     user: &mut User,
     args: Vec<&str>,
 ) -> Replies {
@@ -25,6 +26,9 @@ pub fn send(
         let Some(node_id) = canonical_node_id(node_id) else {
             return INVALID_NODEID.into();
         };
+        if cfg.my_id == node_id {
+            return WILL_NOT_MESSAGE_MYSELF.into();
+        }
         match users::get(conn, &node_id) {
             Ok(x) => x,
             Err(_) => return NO_SUCH_USER.into(),
