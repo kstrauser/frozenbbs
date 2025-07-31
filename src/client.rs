@@ -91,7 +91,7 @@ pub fn terminal(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str) {
     let mut stdout = io::stdout();
     let mut command = String::new();
     let stdin = io::stdin();
-    let commands = command_structure(&cfg);
+    let commands = command_structure(cfg);
 
     println!("Connected. ^D to quit.");
 
@@ -123,7 +123,7 @@ pub fn command(conn: &mut SqliteConnection, cfg: &BBSConfig, node_id: &str, comm
         conn,
         cfg,
         node_id,
-        &command_structure(&cfg),
+        &command_structure(cfg),
         command,
         true,
     ));

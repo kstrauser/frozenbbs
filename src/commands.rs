@@ -168,7 +168,7 @@ fn make_pattern(pattern: &str) -> Regex {
 pub fn command_structure(cfg: &BBSConfig) -> Menus {
     let mut menus = Vec::new();
 
-    for (name, menu) in cfg.menus.iter() {
+    for (name, menu) in &cfg.menus {
         let commands: Vec<Command> = menu
             .commands
             .iter()
