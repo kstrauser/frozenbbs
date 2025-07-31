@@ -270,9 +270,9 @@ fn observe(
     rx_time: u32,
     portnum: i32,
 ) {
-    let label = match PortNum::from_i32(portnum) {
-        Some(x) => x.as_str_name(),
-        None => &format!("portnum {portnum}"),
+    let label = match PortNum::try_from(portnum) {
+        Ok(x) => x.as_str_name(),
+        _ => &format!("portnum {portnum}"),
     };
 
     if let Ok((bbs_user, seen)) = users::observe(

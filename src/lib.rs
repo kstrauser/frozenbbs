@@ -63,14 +63,14 @@ pub struct CommandConfig {
 }
 
 pub fn config_path() -> PathBuf {
-    let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
+    let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG);
     xdg_dirs
         .place_config_file("config.toml")
         .expect("Unable to create the config path")
 }
 
 pub fn default_db_path() -> PathBuf {
-    let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG).unwrap();
+    let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG);
     xdg_dirs
         .place_data_file(format!("{BBS_TAG}.db"))
         .expect("Unable to create the database file path")
