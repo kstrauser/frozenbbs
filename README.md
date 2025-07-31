@@ -215,6 +215,7 @@ These are the important parts of my BBS system. This is what I'd order if I had 
 
 # Releases
 
+- **v1.4.1, 2025-07-31:** aka "the Def Con release". Don't let users tell us to DM ourselves. Update dependencies.
 - **v1.4.0, 2025-02-15:** Configure the menu structure in `config.toml`, not code. You'll need to merge the contents of `config-saml.toml` into your own config file to before the BBS will start.
 - **v1.3.2, 2024-12-28:** _Important fix:_ Fixed a loop where the BBS tried to message itself.
 - **v1.3.1, 2024-12-28:** Fixed a bug where configuring `tcp_address` would conflict with the new default `serial_device`. 🤦‍♂️
