@@ -44,7 +44,7 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         packet: FromRadio,
     ) -> Result<HandlerMetadata, TestRouterError> {
         // Check the packet
-        log::debug!("handle_packet_from_radio: {:#?}", packet);
+        log::debug!("handle_packet_from_radio: {packet:#?}");
 
         Ok(HandlerMetadata {})
     }
@@ -54,7 +54,7 @@ impl PacketRouter<HandlerMetadata, TestRouterError> for TestPacketRouter {
         packet: MeshPacket,
     ) -> Result<HandlerMetadata, TestRouterError> {
         // Check the packet
-        log::debug!("handle_mesh_packet: {:#?}", packet);
+        log::debug!("handle_mesh_packet: {packet:#?}");
 
         if self.my_id == packet.to {
             panic!("I got tricked into messaging myself. I'd rather panic than blue up the radio.");
@@ -81,7 +81,7 @@ pub async fn event_loop(
     conn: &mut SqliteConnection,
     cfg: &BBSConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let commands = commands::command_structure(&cfg);
+    let commands = commands::command_structure(cfg);
     let stream_api = StreamApi::new();
 
     let connected_stream_api;
@@ -209,7 +209,7 @@ fn handle_packet(
                 return None;
             }
         };
-        log::debug!("Received command from {}: <{}>", user_id, command);
+        log::debug!("Received command from {user_id}: <{command}>");
         let replies = dispatch(conn, cfg, &user_id, menus, command.trim(), false);
         log::debug!("Result: {:?}", &replies);
         return Some(Response {
@@ -283,9 +283,9 @@ fn observe(
         i64::from(rx_time) * 1_000_000,
     ) {
         if seen {
-            log::debug!("Observed via {} at {}: {}", label, rx_time, bbs_user);
+            log::debug!("Observed via {label} at {rx_time}: {bbs_user}");
         } else {
-            log::info!("Observed new via {} at {}: {}", label, rx_time, bbs_user);
+            log::info!("Observed new via {label} at {rx_time}: {bbs_user}");
         }
     }
 }
