@@ -16,7 +16,7 @@ pub fn advertise(
             destination: ReplyDestination::Broadcast,
         },
         Reply {
-            out: vec!["You have spammed the general channel.".to_string()],
+            out: vec!["You have spammed the broadcast channel.".to_string()],
             destination: ReplyDestination::Sender,
         },
     ])

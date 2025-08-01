@@ -4,7 +4,7 @@ use crate::{
     db::{queued_messages, stats, users},
     hex_id_to_num, num_id_to_hex,
     paginate::{paginate, MAX_LENGTH},
-    BBSConfig,
+    system_info, BBSConfig,
 };
 use diesel::SqliteConnection;
 use meshtastic::{
@@ -89,10 +89,13 @@ pub async fn event_loop(
 
     eprintln!(
         "\
+{}
+
 Startup stats:
 
 {}
 ",
+        system_info(&cfg),
         stats(conn)
     );
 
