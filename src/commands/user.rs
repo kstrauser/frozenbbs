@@ -8,14 +8,14 @@ const NO_BIO: &str = "You haven't set a bio.";
 /// Show the most recently active users.
 pub fn active(
     conn: &mut SqliteConnection,
-    _cfg: &BBSConfig,
+    cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
     let mut out = Vec::new();
     out.push("Active users:".to_string());
     linefeed!(out);
-    for user in users::recently_active(conn, 10) {
+    for user in users::recently_active(conn, 10, Some(&cfg.my_id)) {
         out.push(format!("{}: {}", user.last_acted_at(), user));
     }
     out.into()
@@ -24,14 +24,14 @@ pub fn active(
 /// Show the most recently seen users.
 pub fn seen(
     conn: &mut SqliteConnection,
-    _cfg: &BBSConfig,
+    cfg: &BBSConfig,
     _user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
     let mut out = Vec::new();
     out.push("Seen users:".to_string());
     linefeed!(out);
-    for user in users::recently_seen(conn, 10) {
+    for user in users::recently_seen(conn, 10, Some(&cfg.my_id)) {
         out.push(format!("{}: {}", user.last_seen_at(), user));
     }
     out.into()
