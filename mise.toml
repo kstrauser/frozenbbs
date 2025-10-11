@@ -1,0 +1,106 @@
+[vars]
+bbscmd = "target/debug/frozenbbs"
+cfgfile = "\"`cargo run config config-path`\""
+dbfile = "\"`cargo run config db-path`\""
+
+# Initial setup
+
+[tasks.setup]
+description = "Install dev requirements"
+run = """
+if which -s diesel; then
+    echo Diesel is already installed.
+else
+    cargo install diesel_cli --no-default-features --features sqlite
+    echo Installed diesel.
+fi
+"""
+
+# Build and install
+
+[tasks.build]
+description = "Build the debug version"
+run = "cargo build"
+
+[tasks.build_release]
+description = "Build the release version"
+run = "cargo build --release"
+
+[tasks.install]
+description = "Install the release version"
+depends = ["build_release"]
+run = "cargo install --path ."
+
+# Development
+
+[tasks.db_nuke]
+description = "Delete the database"
+confirm = "Really delete the database?"
+run = "rm -f {{dbfile }}"
+
+[tasks.db_format]
+description = "Format migrations with pg_format"
+run = "pg_format --type-case 2 --function-case 2 --keyword-case 2 -i migrations/*/*.sql"
+
+[tasks.db_fixture]
+description = "Create some test data"
+depends = ["db_migrate"]
+confirm = "Really write test data to the database?"
+run = """
+{{bbscmd}} user observe --node-id !cafebead --short-name FRZB --long-name "Frozen BBS"
+{{bbscmd}} user observe -n !1234fedc -s 1234 -l 'Jerk'
+{{bbscmd}} user ban -n !1234fedc
+{{bbscmd}} user observe -n !1234abcd -s 4567 -l 'OK person'
+{{bbscmd}} board add --name "Board Talk" --description "Discussing this BBS itself."
+{{bbscmd}} board add --name "Meshtastic" --description "How did we get here?"
+{{bbscmd}} board add --name "Local" --description "Things happening nearby."
+{{bbscmd}} post add --board-id 1 --node-id !cafebead --content "First post."
+{{bbscmd}} post add --board-id 1 --node-id !1234fedc --content "LOL I'm a jerk look at me!"
+{{bbscmd}} post add --board-id 1 --node-id !1234abcd --content "Third post."
+"""
+
+# Deployment
+
+[tasks.install_config]
+description = "Install the default configuration file"
+depends = ["build"]
+run = """
+mkdir -p "$(dirname {{vars.cfgfile}})"
+echo 'db_path = {{vars.dbfile}}' > {{vars.cfgfile}}
+cat config-sample.toml >> {{vars.cfgfile}}
+echo 'Edit {{vars.cfgfile}} to customize your BBS.'
+"""
+
+[tasks.db_migrate]
+description = "Apply migrations"
+run = """
+mkdir -p "$(dirname {{dbfile}})"
+diesel --database-url {{dbfile}} migration run
+"""
+
+# Maintenance
+
+[tasks.db_shell]
+description = "Connect to the database"
+run = "sqlite3 {{ vars.dbfile }}"
+
+# Backup and restore
+
+[tasks.db_dump]
+description = "Export the database to a text file"
+run = "sqlite3 {{ vars.dbfile }} .dump > backup.sql"
+
+[tasks.db_restore]
+description = "Restore the database from backup"
+depends = ["db_nuke"]
+run = "cat backup.sql | sqlite3 {{dbfile}}"
+
+# Running the BBS
+
+[tasks.server]
+description = "Run the BBS"
+run="{{vars.bbscmd}} server"
+
+[tasks.server_info]
+description = "Run the BBS with info logging"
+run="{{vars.bbscmd}} -v server"
