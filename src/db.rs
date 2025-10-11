@@ -64,3 +64,63 @@ Posts       : {}",
         posts::count(conn)
     )
 }
+
+#[cfg(test)]
+pub(crate) fn test_connection() -> SqliteConnection {
+    let mut conn =
+        SqliteConnection::establish(":memory:").expect("should create in-memory SQLite database");
+    conn.batch_execute(
+        r#"
+        PRAGMA foreign_keys = ON;
+        CREATE TABLE boards (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT NOT NULL,
+            created_at_us BIGINT NOT NULL
+        );
+        CREATE TABLE users (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            node_id TEXT NOT NULL UNIQUE,
+            short_name TEXT NOT NULL,
+            long_name TEXT NOT NULL,
+            jackass BOOL NOT NULL DEFAULT FALSE,
+            in_board INTEGER,
+            created_at_us BIGINT NOT NULL,
+            last_seen_at_us BIGINT NOT NULL,
+            last_acted_at_us BIGINT,
+            bio TEXT,
+            FOREIGN KEY (in_board) REFERENCES boards (id)
+        );
+        CREATE TABLE posts (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            board_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            body TEXT NOT NULL,
+            created_at_us BIGINT NOT NULL,
+            UNIQUE(created_at_us),
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (board_id) REFERENCES boards (id)
+        );
+        CREATE TABLE board_states (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            board_id INTEGER NOT NULL,
+            last_post_us BIGINT NOT NULL,
+            FOREIGN KEY (board_id) REFERENCES boards (id),
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        );
+        CREATE TABLE queued_messages (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            recipient_id INTEGER NOT NULL,
+            body TEXT NOT NULL,
+            created_at_us BIGINT NOT NULL,
+            sent_at_us BIGINT,
+            FOREIGN KEY (sender_id) REFERENCES users (id),
+            FOREIGN KEY (recipient_id) REFERENCES users (id)
+        );
+        "#,
+    )
+    .expect("should create schema for tests");
+    conn
+}
