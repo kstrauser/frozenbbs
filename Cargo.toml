@@ -1,6 +1,6 @@
 [package]
 name = "frozenbbs"
-version = "1.4.2"
+version = "1.4.3"
 edition = "2021"
 build = "build.rs"
 
@@ -19,6 +19,8 @@ tokio = "1.47.1"
 toml = "0.9.8"
 validator = { version = "0.20", features = ["derive"] }
 xdg = "3.0.0"
+ureq = { version = "2.10.1", features = ["json"] }
+url = "2.5.7"
 
 [build-dependencies]
 vergen-git2 = { version = "1.0.7", features = ["build"] }

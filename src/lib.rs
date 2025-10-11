@@ -44,6 +44,7 @@ pub struct BBSConfig {
     sysops: Vec<String>,
     public_channel: u32,
     ad_text: String,
+    pub weather: Option<WeatherConfig>,
     pub menus: Map<String, MenuConfig>,
 }
 
@@ -51,6 +52,14 @@ pub struct BBSConfig {
 pub struct MenuConfig {
     pub help_suffix: String,
     pub commands: Vec<CommandConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WeatherConfig {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub location_name: Option<String>,
+    pub api_base: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

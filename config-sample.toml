@@ -7,6 +7,12 @@ sysops = []
 public_channel = 0
 ad_text = "I'm running a BBS on this node. DM me to get started!"
 
+[weather]
+latitude = 37.7749
+longitude = -122.4194
+location_name = "San Francisco, CA"
+# api_base = "https://api.open-meteo.com/v1/forecast"
+
 [menus.General]
 help_suffix = "G"
 
@@ -51,6 +57,13 @@ help = "Update your bio"
 pattern = "(?s)bio\\s*(.+?)\\s*"
 available = "always"
 func = "user::bio_write"
+
+[[menus.General.commands]]
+arg = "WX"
+help = "Current weather at this node"
+pattern = "wx"
+available = "always"
+func = "weather::current"
 
 [menus.Board]
 help_suffix = "B"
