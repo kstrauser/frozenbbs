@@ -19,7 +19,7 @@ tokio = "1.47.1"
 toml = "0.9.8"
 validator = { version = "0.20", features = ["derive"] }
 xdg = "3.0.0"
-ureq = { version = "2.10.1", features = ["json"] }
+ureq = { version = "3.1.2", features = ["json"] }
 url = "2.5.7"
 
 [build-dependencies]

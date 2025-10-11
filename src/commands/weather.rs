@@ -4,7 +4,7 @@ use crate::{linefeed, BBSConfig, WeatherConfig};
 use diesel::SqliteConnection;
 use serde::Deserialize;
 use std::time::Duration;
-use ureq::{Agent, AgentBuilder, Error as UreqError};
+use ureq::{Agent, Error as UreqError};
 use url::Url;
 
 const DEFAULT_API_BASE: &str = "https://api.open-meteo.com/v1/forecast";
@@ -71,18 +71,21 @@ fn fetch_weather(config: &WeatherConfig) -> Result<WeatherReport, WeatherError> 
 
     let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    let agent: Agent = AgentBuilder::new()
-        .timeout(Duration::from_secs(10))
-        .user_agent(&user_agent)
-        .build();
+    let agent: Agent = Agent::new_with_config(
+        Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(10)))
+            .user_agent(user_agent)
+            .build(),
+    );
 
-    let response = agent.get(url.as_str()).call().map_err(|err| match err {
-        UreqError::Status(code, _) => WeatherError::Status(code),
-        UreqError::Transport(details) => WeatherError::Request(details.to_string()),
+    let mut response = agent.get(url.as_str()).call().map_err(|err| match err {
+        UreqError::StatusCode(code) => WeatherError::Status(code),
+        other => WeatherError::Request(other.to_string()),
     })?;
 
     let payload: WeatherApiResponse = response
-        .into_json()
+        .body_mut()
+        .read_json()
         .map_err(|err| WeatherError::Request(err.to_string()))?;
     let WeatherApiResponse {
         timezone,
