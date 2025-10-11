@@ -95,7 +95,7 @@ Startup stats:
 
 {}
 ",
-        system_info(&cfg),
+        system_info(cfg),
         stats(conn)
     );
 
