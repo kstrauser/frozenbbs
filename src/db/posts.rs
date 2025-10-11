@@ -89,3 +89,53 @@ pub fn count(conn: &mut SqliteConnection) -> i32 {
         .get_result::<i64>(conn)
         .expect("Error counting posts") as i32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::{self, boards, users};
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    #[test]
+    fn fetches_skip_posts_from_jackass_users() {
+        let mut conn = db::test_connection();
+
+        let board =
+            boards::add(&mut conn, "General", "General discussion").expect("should create board");
+
+        let (user1, _) = users::record(&mut conn, "!20000001").expect("user1");
+        sleep(Duration::from_micros(10));
+        let (user2, _) = users::record(&mut conn, "!20000002").expect("user2");
+        sleep(Duration::from_micros(10));
+        let (user3, _) = users::record(&mut conn, "!20000003").expect("user3");
+
+        let post1 = add(&mut conn, user1.id, board.id, "hello world").expect("post1");
+        sleep(Duration::from_micros(10));
+        let _post2 = add(&mut conn, user2.id, board.id, "buy now").expect("post2");
+        sleep(Duration::from_micros(10));
+        let post3 = add(&mut conn, user3.id, board.id, "all good").expect("post3");
+
+        let _ = users::ban(&mut conn, &user2).expect("should mark jackass");
+
+        let (next_post, next_user) = after(&mut conn, board.id, post1.created_at_us)
+            .expect("should find next non-jackass post");
+        assert_eq!(next_post.id, post3.id);
+        assert_eq!(next_user.id, user3.id);
+
+        let (current_post, current_user) =
+            current(&mut conn, board.id, post1.created_at_us).expect("should fetch current post");
+        assert_eq!(current_post.id, post1.id);
+        assert_eq!(current_user.id, user1.id);
+
+        let (previous_post, previous_user) = before(&mut conn, board.id, post3.created_at_us)
+            .expect("should skip jackass when going backwards");
+        assert_eq!(previous_post.id, post1.id);
+        assert_eq!(previous_user.id, user1.id);
+
+        let timeline = in_board(&mut conn, board.id);
+        assert_eq!(timeline.len(), 3);
+        assert_eq!(timeline[0].0.id, post1.id);
+        assert_eq!(timeline[2].0.id, post3.id);
+    }
+}

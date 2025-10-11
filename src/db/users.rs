@@ -271,3 +271,63 @@ pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> Result
         .get_result(conn)
         .expect("we must be able to update users"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    #[test]
+    fn record_creates_and_updates_user() {
+        let mut conn = db::test_connection();
+
+        let (user, existed) = record(&mut conn, "!00000001").expect("record should succeed");
+        assert!(!existed);
+        assert_eq!(user.short_name, "????");
+        let first_seen = user.last_seen_at_us;
+        let first_acted = user.last_acted_at_us.expect("user should have acted");
+
+        let (updated, existed_again) =
+            record(&mut conn, "!00000001").expect("record should update user");
+        assert!(existed_again);
+        assert!(updated.last_seen_at_us >= first_seen);
+        assert!(
+            updated
+                .last_acted_at_us
+                .expect("user should still have acted")
+                >= first_acted
+        );
+    }
+
+    #[test]
+    fn recently_active_excludes_specified_node() {
+        let mut conn = db::test_connection();
+
+        let (_, _) = record(&mut conn, "!00000001").expect("first user");
+        sleep(Duration::from_micros(10));
+        let (_, _) = record(&mut conn, "!00000002").expect("second user");
+        sleep(Duration::from_micros(10));
+        let (_, _) = record(&mut conn, "!00000003").expect("third user");
+
+        let active = recently_active(&mut conn, 10, Some("!00000002"));
+        let ids: Vec<String> = active.into_iter().map(|u| u.node_id).collect();
+        assert_eq!(ids, vec!["!00000003".to_string(), "!00000001".to_string()]);
+    }
+
+    #[test]
+    fn recently_seen_orders_newest_first_and_excludes_requested_node() {
+        let mut conn = db::test_connection();
+
+        let (first, _) = record(&mut conn, "!00000011").expect("first user");
+        sleep(Duration::from_micros(10));
+        let (second, _) = record(&mut conn, "!00000012").expect("second user");
+        sleep(Duration::from_micros(10));
+        let (third, _) = record(&mut conn, "!00000013").expect("third user");
+
+        let seen = recently_seen(&mut conn, 10, Some(first.node_id.as_str()));
+        let ids: Vec<String> = seen.into_iter().map(|u| u.node_id).collect();
+        assert_eq!(ids, vec![third.node_id, second.node_id]);
+    }
+}
