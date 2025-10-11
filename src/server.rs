@@ -136,7 +136,9 @@ Startup stats:
                     }
                 };
                 for page in paginate(reply.out, MAX_LENGTH) {
-                    log::info!("Replying to {destination:?} at {channel}: {page}");
+                    log::info!(
+                        "Replying to {destination:?} at {channel}:\n\n\"\"\"\n{page}\n\"\"\""
+                    );
                     stream_api
                         .send_text(&mut router, page, destination, true, channel.into())
                         .await?;
