@@ -7,6 +7,7 @@ mod dm;
 mod state;
 mod sysop;
 mod user;
+mod weather;
 
 const ERROR_POSTING: &str = "Unable to insert this post.";
 
@@ -199,6 +200,7 @@ pub fn command_structure(cfg: &BBSConfig) -> Menus {
                     "user::bio_read" => user::bio_read,
                     "user::bio_write" => user::bio_write,
                     "user::seen" => user::seen,
+                    "weather::current" => weather::current,
                     _ => panic!("Unknown command function: {}", command.func),
                 },
             })
