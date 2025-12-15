@@ -37,15 +37,33 @@ pub fn ping(
     _user: &mut User,
     args: Vec<&str>,
 ) -> Replies {
-    // args[0] is the full command line; the first captured group is at index 1.
-    let input = args.get(1).copied().unwrap_or("ping");
+    // Always use argv[0], which is the full trimmed command line text.
+    let input = args.first().copied().unwrap_or("ping");
     pong_with_case(input).into()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::pong_with_case;
+    use super::{ping, pong_with_case};
+    use crate::db::User;
+    use crate::BBSConfig;
+    use config::Map;
 
+    fn dummy_user() -> User {
+        // Minimal user; fields not relevant to ping behaviour.
+        User {
+            id: 1,
+            node_id: "!cafeb33d".to_string(),
+            short_name: "TEST".to_string(),
+            long_name: "Test User".to_string(),
+            jackass: false,
+            in_board: None,
+            created_at_us: 0,
+            last_seen_at_us: 0,
+            last_acted_at_us: None,
+            bio: None,
+        }
+    }
     #[test]
     fn preserves_common_case_patterns() {
         assert_eq!(pong_with_case("ping"), "pong");
@@ -60,5 +78,32 @@ mod tests {
         assert_eq!(pong_with_case("Pi"), "Pong");
         assert_eq!(pong_with_case("p!n?"), "pong");
         assert_eq!(pong_with_case(""), "pong");
+    }
+
+    #[test]
+    fn ping_uses_full_command_line_and_preserves_case() {
+        let mut user = dummy_user();
+        let cfg = BBSConfig {
+            bbs_name: "Test BBS".to_string(),
+            my_id: "!00000001".to_string(),
+            db_path: ":memory:".to_string(),
+            serial_device: None,
+            tcp_address: None,
+            sysops: Vec::new(),
+            public_channel: 0,
+            ad_text: String::new(),
+            weather: None,
+            menus: Map::new(),
+            page_delay_ms: None,
+        };
+        let mut conn = crate::db::test_connection();
+
+        // Simulate the dispatcher passing argv[0] as the trimmed command line.
+        let replies = ping(&mut conn, &cfg, &mut user, vec!["PING"]);
+        assert_eq!(replies.0.len(), 1);
+        assert_eq!(replies.0[0].out, vec!["PONG".to_string()]);
+
+        let replies = ping(&mut conn, &cfg, &mut user, vec!["Ping"]);
+        assert_eq!(replies.0[0].out, vec!["Pong".to_string()]);
     }
 }

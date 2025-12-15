@@ -75,7 +75,7 @@ $ frozenbbs user list
 
 | Created at          | Last seen at        | Node ID   | Name | Long name                                |
 | ------------------- | ------------------- | --------- | ---- | ---------------------------------------- |
-| 2024-11-25@04:34:47 | 2024-11-25@04:34:47 | !cafebead | FRZB | Frozen BBS                               |
+| 2024-11-25@04:34:47 | 2024-11-25@04:34:47 | !cafeb33d | FRZB | Frozen BBS                               |
 ```
 
 **Adding a user**
@@ -113,7 +113,7 @@ $ frozenbbs post read -b1
 
 | Created at          | Node ID   | Body |
 | ------------------- | --------- | ---- |
-| 2024-11-25@04:34:47 | !cafebead | First post. |
+| 2024-11-25@04:34:47 | !cafeb33d | First post. |
 ```
 
 **Writing posts**
@@ -155,7 +155,7 @@ Entering board 1
 
 Command: n
 
-From: !cafebead/FRZB:Frozen BBS
+From: !cafeb33d/FRZB:Frozen BBS
 At  : 2024-11-28T17:43:13
 Msg : First post.
 
