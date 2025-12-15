@@ -53,4 +53,12 @@ mod tests {
         assert_eq!(pong_with_case("PING"), "PONG");
         assert_eq!(pong_with_case("pInG"), "pOnG");
     }
+
+    #[test]
+    fn handles_short_or_weird_inputs() {
+        assert_eq!(pong_with_case("p"), "pong");
+        assert_eq!(pong_with_case("Pi"), "Pong");
+        assert_eq!(pong_with_case("p!n?"), "pong");
+        assert_eq!(pong_with_case(""), "pong");
+    }
 }
