@@ -124,4 +124,28 @@ mod tests {
     fn user_id_with_leading_zero() {
         assert_eq!(num_id_to_hex(0x00010203), "!00010203");
     }
+
+    #[test]
+    fn system_info_includes_bbs_name_and_build_metadata() {
+        let cfg = BBSConfig {
+            bbs_name: "Test BBS".to_string(),
+            my_id: "!00000001".to_string(),
+            db_path: "/tmp/frozenbbs-test.db".to_string(),
+            serial_device: None,
+            tcp_address: None,
+            sysops: Vec::new(),
+            public_channel: 0,
+            ad_text: String::new(),
+            weather: None,
+            menus: Map::new(),
+            page_delay_ms: None,
+        };
+
+        let info = system_info(&cfg);
+
+        assert!(info.starts_with("Test BBS is running "));
+        assert!(info.contains(env!("CARGO_PKG_VERSION")));
+        assert!(info.contains(env!("VERGEN_GIT_DESCRIBE")));
+        assert!(info.contains(" built at "));
+    }
 }
