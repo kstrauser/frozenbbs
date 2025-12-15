@@ -4,6 +4,7 @@ use crate::{linefeed, BBSConfig};
 use diesel::SqliteConnection;
 
 const NO_BIO: &str = "You haven't set a bio.";
+const MISSING_BIO: &str = "Unable to find the bio.";
 
 /// Show the most recently active users.
 pub fn active(
@@ -60,6 +61,9 @@ pub fn bio_write(
     user: &mut User,
     args: Vec<&str>,
 ) -> Replies {
-    let _ = users::update_bio(conn, user, args[0]);
+    let Some(bio) = args.get(1) else {
+        return MISSING_BIO.into();
+    };
+    let _ = users::update_bio(conn, user, bio);
     "Updated your bio.".into()
 }

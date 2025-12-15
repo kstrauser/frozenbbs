@@ -15,10 +15,10 @@ pub fn send(
     user: &mut User,
     args: Vec<&str>,
 ) -> Replies {
-    let Some(node_id) = args.first() else {
+    let Some(node_id) = args.get(1) else {
         return "Unable to find the recipient".into();
     };
-    let Some(body) = args.get(1) else {
+    let Some(body) = args.get(2) else {
         return "Unable to find the message".into();
     };
 

@@ -60,7 +60,10 @@ pub fn enter(
     user: &mut User,
     args: Vec<&str>,
 ) -> Replies {
-    let Ok(num) = args[0].parse::<i32>() else {
+    let Some(num) = args.get(1) else {
+        return NOT_VALID.into();
+    };
+    let Ok(num) = num.parse::<i32>() else {
         return NOT_VALID.into();
     };
     let count = boards::count(conn);
@@ -186,7 +189,10 @@ pub fn write(
     let Some(in_board) = user.in_board else {
         return NOT_IN_BOARD.into();
     };
-    let Ok(post) = posts::add(conn, user.id, in_board, args[0]) else {
+    let Some(body) = args.get(1) else {
+        return ERROR_POSTING.into();
+    };
+    let Ok(post) = posts::add(conn, user.id, in_board, body) else {
         log::error!("User {user} was unable to post {args:?} to {in_board}.");
         return ERROR_POSTING.into();
     };

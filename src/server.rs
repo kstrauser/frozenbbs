@@ -144,8 +144,7 @@ Startup stats:
                         .await?;
                     if let Some(delay_ms) = cfg.page_delay_ms {
                         if delay_ms > 0 {
-                            tokio::time::sleep(std::time::Duration::from_millis(delay_ms))
-                                .await;
+                            tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                         }
                     }
                 }

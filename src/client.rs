@@ -70,12 +70,14 @@ pub fn dispatch(
             }
             if let Some(captures) = command.pattern.captures(cmdline) {
                 // Collect all of the matched groups in the pattern into a vector of strs
-                let args = captures
+                let mut args: Vec<&str> = captures
                     .iter()
                     .skip(1) // The first item is the command
                     .flatten()
                     .map(|x| x.as_str().trim())
                     .collect();
+                // Prepend the full command line as the first argument.
+                args.insert(0, cmdline);
                 return (command.func)(conn, cfg, &mut user, args);
             }
         }
