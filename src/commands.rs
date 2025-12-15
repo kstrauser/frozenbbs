@@ -4,6 +4,7 @@ use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 mod board;
 mod dm;
+mod ping;
 mod state;
 mod sysop;
 mod user;
@@ -185,6 +186,7 @@ pub fn command_structure(cfg: &BBSConfig) -> Menus {
                     _ => panic!("Unknown command availability: {}", command.available),
                 },
                 func: match command.func.as_str() {
+                    "ping::ping" => ping::ping,
                     "board::author" => board::author,
                     "board::current" => board::current,
                     "board::enter" => board::enter,

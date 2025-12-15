@@ -60,6 +60,13 @@ available = "always"
 func = "user::bio_write"
 
 [[menus.General.commands]]
+arg = "PING"
+help = "Ping the server"
+pattern = "(ping)"
+available = "always"
+func = "ping::ping"
+
+[[menus.General.commands]]
 arg = "WX"
 help = "Current weather at this node"
 pattern = "wx"
