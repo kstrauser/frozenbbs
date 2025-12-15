@@ -142,6 +142,12 @@ Startup stats:
                     stream_api
                         .send_text(&mut router, page, destination, true, channel.into())
                         .await?;
+                    if let Some(delay_ms) = cfg.page_delay_ms {
+                        if delay_ms > 0 {
+                            tokio::time::sleep(std::time::Duration::from_millis(delay_ms))
+                                .await;
+                        }
+                    }
                 }
             }
         }
@@ -181,6 +187,11 @@ Startup stats:
                 stream_api
                     .send_text(&mut router, page, destination, true, 0.into())
                     .await?;
+                if let Some(delay_ms) = cfg.page_delay_ms {
+                    if delay_ms > 0 {
+                        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                    }
+                }
             }
             queued_messages::sent(conn, &message);
         }
