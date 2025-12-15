@@ -12,6 +12,11 @@ use log::LevelFilter;
 struct Cli {
     #[arg(short,long,action=ArgAction::Count)]
     verbose: u8,
+
+    /// Show detailed version / identity (same as server startup).
+    #[arg(long = "whoami", short = 'W')]
+    whoami: bool,
+
     #[command(subcommand)]
     command: Option<Subsystems>,
 }
@@ -150,11 +155,37 @@ enum UserCommands {
     },
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn whoami_flag_is_parsed() {
+        let cli = Cli::try_parse_from(["frozenbbs", "-W"]).unwrap();
+        assert!(cli.whoami);
+        assert_eq!(cli.verbose, 0);
+        assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn whoami_can_be_combined_with_verbose() {
+        let cli = Cli::try_parse_from(["frozenbbs", "-v", "-W"]).unwrap();
+        assert_eq!(cli.verbose, 1);
+        assert!(cli.whoami);
+    }
+}
+
 /// The main command line handler.
 #[allow(clippy::collapsible_match)]
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+
+    if cli.whoami {
+        let cfg = config_load().expect("the default configuration should always be available");
+        println!("{}", frozenbbs::system_info(&cfg));
+        return;
+    }
 
     // Process commands to show configuration information before the system is fully configured.
     if let Some(Subsystems::Config { config_command }) = &cli.command {
