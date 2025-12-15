@@ -10,6 +10,12 @@ const NO_MORE_POSTS: &str = "There are no more posts in this board.";
 const NO_MORE_UNREAD: &str = "There are no more unread posts in any board.";
 const NO_SUCH_POST: &str = "There is no post here.";
 
+/// Does this board have any unread posts for this user?
+fn has_unread(conn: &mut SqliteConnection, user: &User, board_id: i32) -> bool {
+    let last_seen = board_states::get(conn, user.id, board_id);
+    posts::after(conn, board_id, last_seen).is_ok()
+}
+
 /// Print a post and information about its author.
 fn post_print(post: &Post, user: &User) -> Vec<String> {
     let mut out = vec![
@@ -38,16 +44,30 @@ pub fn lister(
     let mut out = Vec::new();
     out.push("Boards:".to_string());
     linefeed!(out);
-    for board in boards::all(conn) {
-        if user.in_board.is_some() && user.in_board.unwrap() == board.id {
-            out.push(format!("* {board}"));
-        } else {
-            out.push(board.to_string());
+    let mut any_unread = false;
+    for board in &all_boards {
+        let unread_here = has_unread(conn, user, board.id);
+        if unread_here {
+            any_unread = true;
         }
+        let mut prefix = String::new();
+        if unread_here {
+            prefix += "!";
+        }
+        if user.in_board.is_some() && user.in_board.unwrap() == board.id {
+            prefix += "*";
+        }
+        if !prefix.is_empty() {
+            prefix += " ";
+        }
+        out.push(format!("{prefix}{board}"));
     }
     if user.in_board.is_some() {
         linefeed!(out);
         out.push("* You are here.".to_string());
+        if any_unread {
+            out.push("! Board has unread messages.".to_string());
+        }
     }
     out.into()
 }
