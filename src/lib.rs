@@ -46,6 +46,7 @@ pub struct BBSConfig {
     ad_text: String,
     pub weather: Option<WeatherConfig>,
     pub menus: Map<String, MenuConfig>,
+    pub page_delay_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

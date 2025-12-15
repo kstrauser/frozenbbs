@@ -231,6 +231,7 @@ mod tests {
             ad_text: "".to_string(),
             weather: None,
             menus: config::Map::new(),
+            page_delay_ms: None,
         }
     }
 

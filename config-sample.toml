@@ -6,6 +6,7 @@ tcp_address = "localhost:4403"
 sysops = []
 public_channel = 0
 ad_text = "I'm running a BBS on this node. DM me to get started!"
+page_delay_ms = 0
 
 [weather]
 latitude = 37.7749
