@@ -73,7 +73,7 @@ pub struct NewPost<'a> {
     pub user_id: i32,
     #[validate(range(min = 1))]
     pub board_id: i32,
-    #[validate(length(min = 1, max = 150))]
+    #[validate(length(min = 1))]
     pub body: &'a str,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub created_at_us: &'a i64,
@@ -148,7 +148,7 @@ pub struct UserUpdate<'a> {
     pub last_seen_at_us: Option<&'a i64>,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_acted_at_us: Option<&'a i64>,
-    #[validate(length(min = 0, max = 200))]
+    #[validate(length(min = 0))]
     pub bio: Option<String>,
 }
 
@@ -198,7 +198,7 @@ pub struct QueuedMessageNew<'a> {
     pub sender_id: i32,
     #[validate(range(min = 1))]
     pub recipient_id: i32,
-    #[validate(length(min = 1, max = 200))]
+    #[validate(length(min = 1))]
     pub body: &'a str,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub created_at_us: &'a i64,
