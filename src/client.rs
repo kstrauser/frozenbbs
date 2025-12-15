@@ -76,8 +76,8 @@ pub fn dispatch(
                     .flatten()
                     .map(|x| x.as_str().trim())
                     .collect();
-                // Prepend the full command line as the first argument.
-                args.insert(0, cmdline);
+                // Prepend the full, trimmed command line as the first argument.
+                args.insert(0, cmdline.trim());
                 return (command.func)(conn, cfg, &mut user, args);
             }
         }
