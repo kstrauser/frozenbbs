@@ -127,18 +127,20 @@ Startup stats:
         // Send any replies from the commands the user executed.
         if let Some(replies) = response.replies {
             for reply in replies.0 {
-                let (channel, destination) = match reply.destination {
-                    ReplyDestination::Sender => {
-                        (0, PacketDestination::Node(NodeId::new(response.sender)))
-                    }
-                    ReplyDestination::Broadcast => {
-                        (cfg.public_channel, PacketDestination::Broadcast)
-                    }
+                let (channel, destination, recipient) = match reply.destination {
+                    ReplyDestination::Sender => (
+                        0,
+                        PacketDestination::Node(NodeId::new(response.sender)),
+                        num_id_to_hex(response.sender),
+                    ),
+                    ReplyDestination::Broadcast => (
+                        cfg.public_channel,
+                        PacketDestination::Broadcast,
+                        "<broadcast>".to_string(),
+                    ),
                 };
                 for page in paginate(reply.out, MAX_LENGTH) {
-                    log::info!(
-                        "Replying to {destination:?} at {channel}:\n\n\"\"\"\n{page}\n\"\"\""
-                    );
+                    log::info!("Replying to {recipient} at {channel}:\n\n\"\"\"\n{page}\n\"\"\"");
                     stream_api
                         .send_text(&mut router, page, destination, true, channel.into())
                         .await?;
