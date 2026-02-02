@@ -170,7 +170,7 @@ Startup stats:
         for message in queue {
             // If this becomes super popular, consider caching the user objects so we don't look
             // them up repeatedly in a loop.
-            let sender = users::get_by_account_id(conn, message.sender_id);
+            let sender = users::get_by_account_id(conn, message.sender_account_id);
             // This should never happen. If the sender doesn't exist, how'd this message get here?
             let Ok(sender) = sender else {
                 log::error!("Unknown sender: {sender:?}");

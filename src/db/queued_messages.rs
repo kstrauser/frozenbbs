@@ -8,7 +8,7 @@ use validator::Validate as _;
 pub fn get(conn: &mut SqliteConnection, user: &User) -> Vec<QueuedMessage> {
     table
         .select(QueuedMessage::as_select())
-        .filter(dsl::recipient_id.eq(user.account_id()))
+        .filter(dsl::recipient_account_id.eq(user.account_id()))
         .filter(dsl::sent_at_us.is_null())
         .load(conn)
         .expect("should always be possible to get queued messages")
@@ -22,8 +22,8 @@ pub fn post(
     body: &str,
 ) -> Result<QueuedMessage> {
     let new_post = QueuedMessageNew {
-        sender_id: sender.account_id(),
-        recipient_id: recipient.account_id(),
+        sender_account_id: sender.account_id(),
+        recipient_account_id: recipient.account_id(),
         body,
         created_at_us: &now_as_useconds(),
     };
