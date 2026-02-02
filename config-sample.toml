@@ -55,7 +55,7 @@ func = "user::name_read"
 [[menus.General.commands]]
 arg = "NAME text"
 help = "Set your name"
-pattern = "(?s)name\\s+(.+?)\\s*"
+pattern = "name\\s+(.+?)\\s*"
 available = "always"
 func = "user::name_write"
 
@@ -83,7 +83,7 @@ func = "user::bio_write"
 [[menus.General.commands]]
 arg = "PING"
 help = "Ping the server"
-pattern = "(ping)"
+pattern = "ping"
 available = "always"
 func = "ping::ping"
 
