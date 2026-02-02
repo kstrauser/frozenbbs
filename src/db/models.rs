@@ -1,5 +1,5 @@
 use super::formatted_useconds;
-use super::schema::{board_states, boards, posts, users};
+use super::schema::{accounts, board_states, boards, nodes, posts};
 use crate::hex_id_to_num;
 use diesel::prelude::*;
 use regex::Regex;
@@ -79,32 +79,21 @@ pub struct NewPost<'a> {
     pub created_at_us: &'a i64,
 }
 
-#[derive(Debug, Identifiable, Queryable, Selectable)]
-#[diesel(table_name = crate::db::schema::users)]
+/// An account represents a human (or machine) user of the BBS.
+/// Accounts can have one or more nodes associated with them.
+#[derive(Debug, Identifiable, Queryable, Selectable, Clone)]
+#[diesel(table_name = crate::db::schema::accounts)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct User {
+pub struct Account {
     pub id: i32,
-    pub node_id: String,
-    pub short_name: String,
-    pub long_name: String,
+    pub username: Option<String>,
     pub jackass: bool,
-    pub in_board: Option<i32>,
-    pub created_at_us: i64,
-    pub last_seen_at_us: i64,
-    pub last_acted_at_us: Option<i64>,
     pub bio: Option<String>,
+    pub created_at_us: i64,
+    pub last_acted_at_us: Option<i64>,
 }
 
-impl fmt::Display for User {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}:{}", self.node_id, self.short_name, self.long_name)
-    }
-}
-
-impl User {
-    pub fn node_id_numeric(&self) -> u32 {
-        hex_id_to_num(&self.node_id).expect("node_ids in the database should always be valid")
-    }
+impl Account {
     pub fn created_at(&self) -> String {
         formatted_useconds(self.created_at_us)
     }
@@ -115,14 +104,69 @@ impl User {
             String::new()
         }
     }
+}
+
+#[derive(Insertable, Validate)]
+#[diesel(table_name = accounts)]
+pub struct AccountNew<'a> {
+    #[validate(length(max = 40))]
+    pub username: Option<&'a str>,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub created_at_us: &'a i64,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub last_acted_at_us: Option<&'a i64>,
+}
+
+#[derive(AsChangeset, Validate)]
+#[diesel(table_name = accounts)]
+pub struct AccountUpdate<'a> {
+    #[validate(length(max = 40))]
+    pub username: Option<&'a str>,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub last_acted_at_us: Option<&'a i64>,
+    #[validate(length(min = 0))]
+    pub bio: Option<String>,
+}
+
+/// A node represents a Meshtastic radio device.
+/// Multiple nodes can belong to the same account.
+#[derive(Debug, Identifiable, Queryable, Selectable, Clone)]
+#[diesel(table_name = crate::db::schema::nodes)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct Node {
+    pub id: i32,
+    pub account_id: i32,
+    pub node_id: String,
+    pub short_name: String,
+    pub long_name: String,
+    pub in_board: Option<i32>,
+    pub created_at_us: i64,
+    pub last_seen_at_us: i64,
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}:{}", self.node_id, self.short_name, self.long_name)
+    }
+}
+
+impl Node {
+    pub fn node_id_numeric(&self) -> u32 {
+        hex_id_to_num(&self.node_id).expect("node_ids in the database should always be valid")
+    }
+    pub fn created_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
     pub fn last_seen_at(&self) -> String {
         formatted_useconds(self.last_seen_at_us)
     }
 }
 
 #[derive(Insertable, Validate)]
-#[diesel(table_name = users)]
-pub struct UserNew<'a> {
+#[diesel(table_name = nodes)]
+pub struct NodeNew<'a> {
+    #[validate(range(min = 1))]
+    pub account_id: i32,
     #[validate(regex(path = *RE_NODE_ID))]
     pub node_id: &'a str,
     #[validate(length(min = 1, max = 4))]
@@ -133,23 +177,75 @@ pub struct UserNew<'a> {
     pub created_at_us: &'a i64,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_seen_at_us: &'a i64,
-    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
-    pub last_acted_at_us: Option<&'a i64>,
 }
 
-#[derive(AsChangeset, Insertable, Validate)]
-#[diesel(table_name = users)]
-pub struct UserUpdate<'a> {
+#[derive(AsChangeset, Validate)]
+#[diesel(table_name = nodes)]
+pub struct NodeUpdate<'a> {
     #[validate(length(min = 1, max = 4))]
     pub short_name: Option<&'a str>,
     #[validate(length(min = 1, max = 40))]
     pub long_name: Option<&'a str>,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_seen_at_us: Option<&'a i64>,
-    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
-    pub last_acted_at_us: Option<&'a i64>,
-    #[validate(length(min = 0))]
-    pub bio: Option<String>,
+}
+
+/// A combined view of an Account and its primary Node.
+/// This is used throughout the application where we need both account and node info.
+#[derive(Debug, Clone)]
+pub struct User {
+    pub account: Account,
+    pub node: Node,
+}
+
+impl fmt::Display for User {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(username) = &self.account.username {
+            write!(f, "{}", username)
+        } else {
+            write!(f, "{}", self.node.long_name)
+        }
+    }
+}
+
+impl User {
+    pub fn node_id_numeric(&self) -> u32 {
+        self.node.node_id_numeric()
+    }
+    pub fn created_at(&self) -> String {
+        self.account.created_at()
+    }
+    pub fn last_acted_at(&self) -> String {
+        self.account.last_acted_at()
+    }
+    pub fn last_seen_at(&self) -> String {
+        self.node.last_seen_at()
+    }
+    pub fn jackass(&self) -> bool {
+        self.account.jackass
+    }
+    pub fn bio(&self) -> &Option<String> {
+        &self.account.bio
+    }
+    pub fn in_board(&self) -> Option<i32> {
+        self.node.in_board
+    }
+    pub fn account_id(&self) -> i32 {
+        self.account.id
+    }
+    pub fn node_id(&self) -> &str {
+        &self.node.node_id
+    }
+    pub fn short_name(&self) -> &str {
+        &self.node.short_name
+    }
+    pub fn long_name(&self) -> &str {
+        &self.node.long_name
+    }
+    /// Returns the display name: username if set, otherwise long_name from node
+    pub fn display_name(&self) -> &str {
+        self.account.username.as_deref().unwrap_or(&self.node.long_name)
+    }
 }
 
 #[derive(Debug, Identifiable, Queryable, Selectable)]

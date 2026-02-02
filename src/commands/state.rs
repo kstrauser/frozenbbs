@@ -13,7 +13,7 @@ pub fn describe(
     _args: Vec<&str>,
 ) -> Replies {
     let mut out = vec![format!("Hi, {}!", user)];
-    if let Some(user_board) = user.in_board {
+    if let Some(user_board) = user.in_board() {
         let Ok(board) = boards::get(conn, user_board) else {
             log::error!("User {user} ended up in an unexpected board {user_board}");
             return INVALID_BOARD.into();

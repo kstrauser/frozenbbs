@@ -100,9 +100,9 @@ pub struct AvailableState {
 /// Pre-compute values used by available_* functions so we're not repeatedly hitting the database.
 pub fn available_state(cfg: &BBSConfig, user: &User, local: bool) -> AvailableState {
     AvailableState {
-        in_board: user.in_board.is_some(),
+        in_board: user.in_board().is_some(),
         is_local: local,
-        is_sysop: cfg.sysops.contains(&user.node_id),
+        is_sysop: cfg.sysops.iter().any(|s| s == user.node_id()),
     }
 }
 
@@ -201,6 +201,9 @@ pub fn command_structure(cfg: &BBSConfig) -> Menus {
                     "user::active" => user::active,
                     "user::bio_read" => user::bio_read,
                     "user::bio_write" => user::bio_write,
+                    "user::name_read" => user::name_read,
+                    "user::name_write" => user::name_write,
+                    "user::name_clear" => user::name_clear,
                     "user::seen" => user::seen,
                     "weather::current" => weather::current,
                     _ => panic!("Unknown command function: {}", command.func),

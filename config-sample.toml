@@ -46,6 +46,27 @@ available = "always"
 func = "dm::send"
 
 [[menus.General.commands]]
+arg = "NAME"
+help = "Show your name"
+pattern = "name"
+available = "always"
+func = "user::name_read"
+
+[[menus.General.commands]]
+arg = "NAME text"
+help = "Set your name"
+pattern = "(?s)name\\s+(.+?)\\s*"
+available = "always"
+func = "user::name_write"
+
+[[menus.General.commands]]
+arg = "NAME -"
+help = "Clear your name (use node name)"
+pattern = "name\\s*-\\s*"
+available = "always"
+func = "user::name_clear"
+
+[[menus.General.commands]]
 arg = "BIO"
 help = "Show your bio"
 pattern = "bio"
