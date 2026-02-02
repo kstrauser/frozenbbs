@@ -15,7 +15,7 @@ diesel::table! {
 diesel::table! {
     board_states (id) {
         id -> Integer,
-        user_id -> Integer,
+        account_id -> Integer,
         board_id -> Integer,
         last_post_us -> BigInt,
     }
@@ -46,7 +46,7 @@ diesel::table! {
     posts (id) {
         id -> Integer,
         board_id -> Integer,
-        user_id -> Integer,
+        account_id -> Integer,
         body -> Text,
         created_at_us -> BigInt,
     }
@@ -55,8 +55,8 @@ diesel::table! {
 diesel::table! {
     queued_messages (id) {
         id -> Integer,
-        sender_id -> Integer,
-        recipient_id -> Integer,
+        sender_account_id -> Integer,
+        recipient_account_id -> Integer,
         body -> Text,
         created_at_us -> BigInt,
         sent_at_us -> Nullable<BigInt>,
@@ -64,10 +64,10 @@ diesel::table! {
 }
 
 diesel::joinable!(accounts -> boards (in_board));
-diesel::joinable!(board_states -> accounts (user_id));
+diesel::joinable!(board_states -> accounts (account_id));
 diesel::joinable!(board_states -> boards (board_id));
 diesel::joinable!(nodes -> accounts (account_id));
-diesel::joinable!(posts -> accounts (user_id));
+diesel::joinable!(posts -> accounts (account_id));
 diesel::joinable!(posts -> boards (board_id));
 
 diesel::allow_tables_to_appear_in_same_query!(

@@ -101,30 +101,30 @@ pub(crate) fn test_connection() -> SqliteConnection {
         CREATE TABLE posts (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             board_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
+            account_id INTEGER NOT NULL,
             body TEXT NOT NULL,
             created_at_us BIGINT NOT NULL,
             UNIQUE(created_at_us),
-            FOREIGN KEY (user_id) REFERENCES accounts (id),
+            FOREIGN KEY (account_id) REFERENCES accounts (id),
             FOREIGN KEY (board_id) REFERENCES boards (id)
         );
         CREATE TABLE board_states (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
+            account_id INTEGER NOT NULL,
             board_id INTEGER NOT NULL,
             last_post_us BIGINT NOT NULL,
             FOREIGN KEY (board_id) REFERENCES boards (id),
-            FOREIGN KEY (user_id) REFERENCES accounts (id)
+            FOREIGN KEY (account_id) REFERENCES accounts (id)
         );
         CREATE TABLE queued_messages (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            sender_id INTEGER NOT NULL,
-            recipient_id INTEGER NOT NULL,
+            sender_account_id INTEGER NOT NULL,
+            recipient_account_id INTEGER NOT NULL,
             body TEXT NOT NULL,
             created_at_us BIGINT NOT NULL,
             sent_at_us BIGINT,
-            FOREIGN KEY (sender_id) REFERENCES accounts (id),
-            FOREIGN KEY (recipient_id) REFERENCES accounts (id)
+            FOREIGN KEY (sender_account_id) REFERENCES accounts (id),
+            FOREIGN KEY (recipient_account_id) REFERENCES accounts (id)
         );
         "#,
     )

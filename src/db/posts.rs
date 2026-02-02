@@ -18,7 +18,7 @@ fn make_user(conn: &mut SqliteConnection, account: Account) -> User {
 
 pub fn add(conn: &mut SqliteConnection, account_id: i32, board_id: i32, body: &str) -> Result<Post> {
     let new_post = NewPost {
-        user_id: account_id,
+        account_id,
         board_id,
         body,
         created_at_us: &now_as_useconds(),

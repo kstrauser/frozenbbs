@@ -55,7 +55,7 @@ pub struct NewBoard<'a> {
 pub struct Post {
     pub id: i32,
     pub board_id: i32,
-    pub user_id: i32,
+    pub account_id: i32,
     pub body: String,
     pub created_at_us: i64,
 }
@@ -70,7 +70,7 @@ impl Post {
 #[diesel(table_name = posts)]
 pub struct NewPost<'a> {
     #[validate(range(min = 1))]
-    pub user_id: i32,
+    pub account_id: i32,
     #[validate(range(min = 1))]
     pub board_id: i32,
     #[validate(length(min = 1))]
@@ -253,7 +253,7 @@ impl User {
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct BoardState {
     pub id: i32,
-    pub user_id: i32,
+    pub account_id: i32,
     pub board_id: i32,
     pub last_post_us: i64,
 }
@@ -262,7 +262,7 @@ pub struct BoardState {
 #[diesel(table_name = board_states)]
 pub struct NewBoardState {
     #[validate(range(min = 1))]
-    pub user_id: i32,
+    pub account_id: i32,
     #[validate(range(min = 1))]
     pub board_id: i32,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
@@ -274,8 +274,8 @@ pub struct NewBoardState {
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct QueuedMessage {
     pub id: i32,
-    pub sender_id: i32,
-    pub recipient_id: i32,
+    pub sender_account_id: i32,
+    pub recipient_account_id: i32,
     pub body: String,
     pub created_at_us: i64,
     pub sent_at_us: Option<i64>,
@@ -291,9 +291,9 @@ impl QueuedMessage {
 #[diesel(table_name = crate::db::schema::queued_messages)]
 pub struct QueuedMessageNew<'a> {
     #[validate(range(min = 1))]
-    pub sender_id: i32,
+    pub sender_account_id: i32,
     #[validate(range(min = 1))]
-    pub recipient_id: i32,
+    pub recipient_account_id: i32,
     #[validate(length(min = 1))]
     pub body: &'a str,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
