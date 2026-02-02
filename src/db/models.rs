@@ -299,3 +299,142 @@ pub struct QueuedMessageNew<'a> {
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub created_at_us: &'a i64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_account(id: i32, username: Option<&str>) -> Account {
+        Account {
+            id,
+            username: username.map(String::from),
+            jackass: false,
+            bio: Some("Test bio".to_string()),
+            created_at_us: 1_710_000_000_000_000,
+            last_acted_at_us: Some(1_710_000_001_000_000),
+            in_board: Some(1),
+        }
+    }
+
+    fn make_node(id: i32, account_id: i32) -> Node {
+        Node {
+            id,
+            account_id,
+            node_id: "!abcd1234".to_string(),
+            short_name: "TEST".to_string(),
+            long_name: "Test Node".to_string(),
+            created_at_us: 1_710_000_000_000_000,
+            last_seen_at_us: 1_710_000_002_000_000,
+        }
+    }
+
+    fn make_user(username: Option<&str>) -> User {
+        User {
+            account: make_account(1, username),
+            node: make_node(1, 1),
+        }
+    }
+
+    #[test]
+    fn account_created_at_formats_timestamp() {
+        let account = make_account(1, None);
+        let created = account.created_at();
+        assert!(created.starts_with("20"));
+        assert!(created.contains("T"));
+    }
+
+    #[test]
+    fn account_last_acted_at_formats_timestamp_when_present() {
+        let account = make_account(1, None);
+        let acted = account.last_acted_at();
+        assert!(!acted.is_empty());
+        assert!(acted.starts_with("20"));
+    }
+
+    #[test]
+    fn account_last_acted_at_returns_empty_when_none() {
+        let mut account = make_account(1, None);
+        account.last_acted_at_us = None;
+        assert_eq!(account.last_acted_at(), "");
+    }
+
+    #[test]
+    fn node_display_shows_id_short_and_long_name() {
+        let node = make_node(1, 1);
+        let display = format!("{}", node);
+        assert_eq!(display, "!abcd1234/TEST:Test Node");
+    }
+
+    #[test]
+    fn node_id_numeric_parses_hex_id() {
+        let node = make_node(1, 1);
+        assert_eq!(node.node_id_numeric(), 0xabcd1234);
+    }
+
+    #[test]
+    fn node_created_at_formats_timestamp() {
+        let node = make_node(1, 1);
+        let created = node.created_at();
+        assert!(created.starts_with("20"));
+    }
+
+    #[test]
+    fn node_last_seen_at_formats_timestamp() {
+        let node = make_node(1, 1);
+        let seen = node.last_seen_at();
+        assert!(seen.starts_with("20"));
+    }
+
+    #[test]
+    fn user_display_shows_username_when_set() {
+        let user = make_user(Some("alice"));
+        assert_eq!(format!("{}", user), "alice");
+    }
+
+    #[test]
+    fn user_display_shows_long_name_when_no_username() {
+        let user = make_user(None);
+        assert_eq!(format!("{}", user), "Test Node");
+    }
+
+    #[test]
+    fn user_display_name_returns_username_when_set() {
+        let user = make_user(Some("bob"));
+        assert_eq!(user.display_name(), "bob");
+    }
+
+    #[test]
+    fn user_display_name_returns_long_name_when_no_username() {
+        let user = make_user(None);
+        assert_eq!(user.display_name(), "Test Node");
+    }
+
+    #[test]
+    fn user_delegates_to_node_methods() {
+        let user = make_user(None);
+        assert_eq!(user.node_id_numeric(), 0xabcd1234);
+        assert_eq!(user.node_id(), "!abcd1234");
+        assert_eq!(user.short_name(), "TEST");
+        assert_eq!(user.long_name(), "Test Node");
+        assert!(!user.last_seen_at().is_empty());
+    }
+
+    #[test]
+    fn user_delegates_to_account_methods() {
+        let user = make_user(None);
+        assert_eq!(user.account_id(), 1);
+        assert!(!user.jackass());
+        assert_eq!(user.bio(), &Some("Test bio".to_string()));
+        assert_eq!(user.in_board(), Some(1));
+        assert!(!user.created_at().is_empty());
+        assert!(!user.last_acted_at().is_empty());
+    }
+
+    #[test]
+    fn user_jackass_reflects_account_jackass() {
+        let mut user = make_user(None);
+        assert!(!user.jackass());
+        user.account.jackass = true;
+        assert!(user.jackass());
+    }
+}

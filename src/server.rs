@@ -154,6 +154,9 @@ Startup stats:
         }
 
         // Next, send any queued messages to the user.
+        // We send to the specific node that just connected (response.sender), not necessarily
+        // the "primary" node for the account. This way, if an account has multiple nodes,
+        // messages are delivered to whichever node is currently active.
 
         let node_id = num_id_to_hex(response.sender);
         let Ok(user) = users::get(conn, &node_id) else {
@@ -168,12 +171,10 @@ Startup stats:
         }
 
         for message in queue {
-            // If this becomes super popular, consider caching the user objects so we don't look
-            // them up repeatedly in a loop.
-            let sender = users::get_by_account_id(conn, message.sender_account_id);
-            // This should never happen. If the sender doesn't exist, how'd this message get here?
-            let Ok(sender) = sender else {
-                log::error!("Unknown sender: {sender:?}");
+            // Look up the sender's account to display their name. Note: if the sender has
+            // multiple nodes, we show their username (or first node's long_name as fallback).
+            let Ok(sender) = users::get_by_account_id(conn, message.sender_account_id) else {
+                log::error!("Unknown sender account_id: {}", message.sender_account_id);
                 continue;
             };
             log::info!("Sending a queued message from {sender} to {user}");
@@ -183,7 +184,9 @@ Startup stats:
                 String::new(),
                 message.body.to_string(),
             ];
-            let destination = PacketDestination::Node(NodeId::new(user.node_id_numeric()));
+            // Send to the node that just connected, not user.node_id_numeric() which might
+            // be a different node if the account has multiple.
+            let destination = PacketDestination::Node(NodeId::new(response.sender));
             for page in paginate(out, MAX_LENGTH) {
                 stream_api
                     .send_text(&mut router, page, destination, true, 0.into())
