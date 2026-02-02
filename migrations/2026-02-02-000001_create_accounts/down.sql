@@ -15,7 +15,7 @@ CREATE TABLE users (
 
 -- Migrate data back from nodes and accounts
 INSERT INTO users (id, node_id, short_name, long_name, jackass, in_board, created_at_us, last_seen_at_us, last_acted_at_us, bio)
-SELECT n.id, n.node_id, n.short_name, n.long_name, a.jackass, n.in_board, n.created_at_us, n.last_seen_at_us, a.last_acted_at_us, a.bio
+SELECT n.id, n.node_id, n.short_name, n.long_name, a.jackass, a.in_board, n.created_at_us, n.last_seen_at_us, a.last_acted_at_us, a.bio
 FROM nodes n
 JOIN accounts a ON n.account_id = a.id;
 

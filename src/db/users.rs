@@ -259,11 +259,11 @@ pub fn get_by_short_name(conn: &mut SqliteConnection, short_name: &str) -> Optio
 }
 
 pub fn enter_board(conn: &mut SqliteConnection, user: &User, board_id: i32) -> QueryResult<User> {
-    let node: Node = diesel::update(&user.node)
-        .set(nodes_dsl::in_board.eq(board_id))
-        .returning(Node::as_returning())
+    let account: Account = diesel::update(&user.account)
+        .set(accounts_dsl::in_board.eq(board_id))
+        .returning(Account::as_returning())
         .get_result(conn)?;
-    Ok(User { account: user.account.clone(), node })
+    Ok(User { account, node: user.node.clone() })
 }
 
 pub fn recently_seen(

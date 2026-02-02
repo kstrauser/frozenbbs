@@ -91,6 +91,7 @@ pub struct Account {
     pub bio: Option<String>,
     pub created_at_us: i64,
     pub last_acted_at_us: Option<i64>,
+    pub in_board: Option<i32>,
 }
 
 impl Account {
@@ -139,7 +140,6 @@ pub struct Node {
     pub node_id: String,
     pub short_name: String,
     pub long_name: String,
-    pub in_board: Option<i32>,
     pub created_at_us: i64,
     pub last_seen_at_us: i64,
 }
@@ -228,7 +228,7 @@ impl User {
         &self.account.bio
     }
     pub fn in_board(&self) -> Option<i32> {
-        self.node.in_board
+        self.account.in_board
     }
     pub fn account_id(&self) -> i32 {
         self.account.id

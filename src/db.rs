@@ -84,7 +84,9 @@ pub(crate) fn test_connection() -> SqliteConnection {
             jackass BOOL NOT NULL DEFAULT FALSE,
             bio TEXT,
             created_at_us BIGINT NOT NULL,
-            last_acted_at_us BIGINT
+            last_acted_at_us BIGINT,
+            in_board INTEGER,
+            FOREIGN KEY (in_board) REFERENCES boards (id)
         );
         CREATE TABLE nodes (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -92,11 +94,9 @@ pub(crate) fn test_connection() -> SqliteConnection {
             node_id TEXT NOT NULL UNIQUE,
             short_name TEXT NOT NULL,
             long_name TEXT NOT NULL,
-            in_board INTEGER,
             created_at_us BIGINT NOT NULL,
             last_seen_at_us BIGINT NOT NULL,
-            FOREIGN KEY (account_id) REFERENCES accounts (id),
-            FOREIGN KEY (in_board) REFERENCES boards (id)
+            FOREIGN KEY (account_id) REFERENCES accounts (id)
         );
         CREATE TABLE posts (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
