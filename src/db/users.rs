@@ -231,14 +231,32 @@ pub fn get(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
 }
 
 /// Get a user by their account id field.
+///
+/// Note: If the account has multiple nodes, this returns the first one (by id).
+/// Use `get_nodes_for_account` if you need all nodes.
 pub fn get_by_account_id(conn: &mut SqliteConnection, account_id: i32) -> QueryResult<User> {
     let account = get_account_by_id(conn, account_id)?;
-    // Get the first node for this account (for now, accounts have one node)
     let node: Node = nodes_dsl::nodes
         .select(Node::as_select())
         .filter(nodes_dsl::account_id.eq(account_id))
+        .order(nodes_dsl::id)
         .first(conn)?;
     Ok(User { account, node })
+}
+
+/// Get all nodes associated with an account.
+pub fn get_nodes_for_account(conn: &mut SqliteConnection, account_id: i32) -> Vec<Node> {
+    nodes_dsl::nodes
+        .select(Node::as_select())
+        .filter(nodes_dsl::account_id.eq(account_id))
+        .order(nodes_dsl::id)
+        .load(conn)
+        .expect("should always be able to load nodes for an account")
+}
+
+/// Get just the account by its id (without a node).
+pub fn get_account(conn: &mut SqliteConnection, account_id: i32) -> QueryResult<Account> {
+    get_account_by_id(conn, account_id)
 }
 
 /// Get a user by their short_name field.
@@ -271,6 +289,7 @@ pub fn recently_seen(
     count: i64,
     exclude_node_id: Option<&str>,
 ) -> Vec<User> {
+    // Get nodes ordered by last_seen, then deduplicate by account in code.
     let mut query = nodes_dsl::nodes
         .select(Node::as_select())
         .order(nodes_dsl::last_seen_at_us.desc())
@@ -280,8 +299,21 @@ pub fn recently_seen(
         query = query.filter(nodes_dsl::node_id.ne(node_id));
     }
 
-    let nodes: Vec<Node> = query.limit(count).load(conn).expect("Error loading nodes");
-    nodes.into_iter().map(|node| make_user(conn, node)).collect()
+    let nodes: Vec<Node> = query.load(conn).expect("Error loading nodes");
+
+    // Deduplicate by account_id, keeping the first (most recently seen) node per account
+    let mut seen_accounts = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for node in nodes {
+        if seen_accounts.insert(node.account_id) {
+            result.push(make_user(conn, node));
+            #[allow(clippy::cast_possible_truncation)]
+            if result.len() >= count as usize {
+                break;
+            }
+        }
+    }
+    result
 }
 
 pub fn recently_active(
@@ -289,20 +321,38 @@ pub fn recently_active(
     count: i64,
     exclude_node_id: Option<&str>,
 ) -> Vec<User> {
-    // Join nodes with accounts to filter by last_acted_at_us and order by it
-    let mut query = nodes_dsl::nodes
-        .inner_join(accounts_dsl::accounts)
-        .select(Node::as_select())
+    // Get accounts ordered by last_acted_at_us, then pair each with their most recently seen node.
+    let accounts: Vec<Account> = accounts_dsl::accounts
+        .select(Account::as_select())
         .filter(accounts_dsl::last_acted_at_us.is_not_null())
         .order(accounts_dsl::last_acted_at_us.desc())
-        .into_boxed();
+        .load(conn)
+        .expect("Error loading accounts");
 
-    if let Some(node_id) = exclude_node_id {
-        query = query.filter(nodes_dsl::node_id.ne(node_id));
+    // Deduplicate and pair with most recently seen node
+    let mut result = Vec::new();
+    for account in accounts {
+        // Get the most recently seen node for this account, excluding the specified node if any
+        let mut node_query = nodes_dsl::nodes
+            .select(Node::as_select())
+            .filter(nodes_dsl::account_id.eq(account.id))
+            .order(nodes_dsl::last_seen_at_us.desc())
+            .into_boxed();
+
+        if let Some(node_id) = exclude_node_id {
+            node_query = node_query.filter(nodes_dsl::node_id.ne(node_id));
+        }
+
+        if let Ok(node) = node_query.first::<Node>(conn) {
+            result.push(User { account, node });
+            #[allow(clippy::cast_possible_truncation)]
+            if result.len() >= count as usize {
+                break;
+            }
+        }
+        // If no valid node found (all excluded), skip this account
     }
-
-    let nodes: Vec<Node> = query.limit(count).load(conn).expect("Error loading nodes");
-    nodes.into_iter().map(|node| make_user(conn, node)).collect()
+    result
 }
 
 /// Get the number of seen and active users (accounts).
@@ -358,6 +408,30 @@ mod tests {
     use std::thread::sleep;
     use std::time::Duration;
 
+    /// Helper to add a second node to an existing account for testing multi-node scenarios
+    fn add_node_to_account(
+        conn: &mut SqliteConnection,
+        account_id: i32,
+        node_id: &str,
+    ) -> Node {
+        let now = now_as_useconds();
+        let new_node = NodeNew {
+            account_id,
+            node_id,
+            short_name: "TST2",
+            long_name: "Test Node 2",
+            created_at_us: &now,
+            last_seen_at_us: &now,
+        };
+        new_node.validate().expect("new node should be valid");
+
+        diesel::insert_into(nodes::table)
+            .values(&new_node)
+            .returning(Node::as_returning())
+            .get_result(conn)
+            .expect("should be able to insert a second node")
+    }
+
     #[test]
     fn record_creates_and_updates_user() {
         let mut conn = db::test_connection();
@@ -409,5 +483,85 @@ mod tests {
         let seen = recently_seen(&mut conn, 10, Some(first.node.node_id.as_str()));
         let ids: Vec<String> = seen.into_iter().map(|u| u.node.node_id).collect();
         assert_eq!(ids, vec![third.node.node_id, second.node.node_id]);
+    }
+
+    #[test]
+    fn recently_seen_deduplicates_multi_node_accounts() {
+        let mut conn = db::test_connection();
+
+        // Create first account with one node
+        let (user1, _) = record(&mut conn, "!00000021").expect("first user");
+        sleep(Duration::from_micros(10));
+
+        // Create second account with two nodes
+        let (user2, _) = record(&mut conn, "!00000022").expect("second user");
+        sleep(Duration::from_micros(10));
+        let node2b = add_node_to_account(&mut conn, user2.account.id, "!00000023");
+
+        // node2b was just created, so it's the most recently seen
+        // recently_seen should return only 2 accounts, not 3 nodes
+        let seen = recently_seen(&mut conn, 10, None);
+        assert_eq!(seen.len(), 2, "should return 2 accounts, not 3 nodes");
+
+        // The most recently seen node for account2 should be node2b
+        let account_ids: Vec<i32> = seen.iter().map(|u| u.account.id).collect();
+        assert!(account_ids.contains(&user1.account.id));
+        assert!(account_ids.contains(&user2.account.id));
+
+        // Account2's entry should show node2b (most recently seen)
+        let user2_entry = seen.iter().find(|u| u.account.id == user2.account.id).unwrap();
+        assert_eq!(user2_entry.node.node_id, node2b.node_id);
+    }
+
+    #[test]
+    fn recently_active_deduplicates_multi_node_accounts() {
+        let mut conn = db::test_connection();
+
+        // Create first account
+        let (_, _) = record(&mut conn, "!00000031").expect("first user");
+        sleep(Duration::from_micros(10));
+
+        // Create second account with two nodes
+        let (user2, _) = record(&mut conn, "!00000032").expect("second user");
+        sleep(Duration::from_micros(10));
+        let node2b = add_node_to_account(&mut conn, user2.account.id, "!00000033");
+
+        // recently_active should return only 2 accounts, not 3 nodes
+        let active = recently_active(&mut conn, 10, None);
+        assert_eq!(active.len(), 2, "should return 2 accounts, not 3 nodes");
+
+        // The most recently seen node for account2 should be node2b
+        let user2_entry = active.iter().find(|u| u.account.id == user2.account.id).unwrap();
+        assert_eq!(user2_entry.node.node_id, node2b.node_id);
+    }
+
+    #[test]
+    fn recently_seen_with_excluded_node_falls_back_to_other_node() {
+        let mut conn = db::test_connection();
+
+        // Create account with two nodes
+        let (user, _) = record(&mut conn, "!00000041").expect("user");
+        sleep(Duration::from_micros(10));
+        let node_b = add_node_to_account(&mut conn, user.account.id, "!00000042");
+
+        // Exclude the newer node - should fall back to the older one
+        let seen = recently_seen(&mut conn, 10, Some(&node_b.node_id));
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].node.node_id, "!00000041");
+    }
+
+    #[test]
+    fn recently_active_with_excluded_node_falls_back_to_other_node() {
+        let mut conn = db::test_connection();
+
+        // Create account with two nodes
+        let (user, _) = record(&mut conn, "!00000051").expect("user");
+        sleep(Duration::from_micros(10));
+        let node_b = add_node_to_account(&mut conn, user.account.id, "!00000052");
+
+        // Exclude the newer node - should fall back to the older one
+        let active = recently_active(&mut conn, 10, Some(&node_b.node_id));
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].node.node_id, "!00000051");
     }
 }
