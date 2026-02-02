@@ -8,6 +8,7 @@ diesel::table! {
         bio -> Nullable<Text>,
         created_at_us -> BigInt,
         last_acted_at_us -> Nullable<BigInt>,
+        in_board -> Nullable<Integer>,
     }
 }
 
@@ -36,7 +37,6 @@ diesel::table! {
         node_id -> Text,
         short_name -> Text,
         long_name -> Text,
-        in_board -> Nullable<Integer>,
         created_at_us -> BigInt,
         last_seen_at_us -> BigInt,
     }
@@ -63,10 +63,10 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(accounts -> boards (in_board));
 diesel::joinable!(board_states -> accounts (user_id));
 diesel::joinable!(board_states -> boards (board_id));
 diesel::joinable!(nodes -> accounts (account_id));
-diesel::joinable!(nodes -> boards (in_board));
 diesel::joinable!(posts -> accounts (user_id));
 diesel::joinable!(posts -> boards (board_id));
 

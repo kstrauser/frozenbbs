@@ -59,6 +59,7 @@ mod tests {
                 bio: None,
                 created_at_us: 0,
                 last_acted_at_us: None,
+                in_board: None,
             },
             node: Node {
                 id: 1,
@@ -66,7 +67,6 @@ mod tests {
                 node_id: "!cafeb33d".to_string(),
                 short_name: "TEST".to_string(),
                 long_name: "Test User".to_string(),
-                in_board: None,
                 created_at_us: 0,
                 last_seen_at_us: 0,
             },
