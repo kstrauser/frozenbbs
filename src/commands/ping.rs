@@ -45,23 +45,31 @@ pub fn ping(
 #[cfg(test)]
 mod tests {
     use super::{ping, pong_with_case};
-    use crate::db::User;
+    use crate::db::{Account, Node, User};
     use crate::BBSConfig;
     use config::Map;
 
     fn dummy_user() -> User {
         // Minimal user; fields not relevant to ping behaviour.
         User {
-            id: 1,
-            node_id: "!cafeb33d".to_string(),
-            short_name: "TEST".to_string(),
-            long_name: "Test User".to_string(),
-            jackass: false,
-            in_board: None,
-            created_at_us: 0,
-            last_seen_at_us: 0,
-            last_acted_at_us: None,
-            bio: None,
+            account: Account {
+                id: 1,
+                username: None,
+                jackass: false,
+                bio: None,
+                created_at_us: 0,
+                last_acted_at_us: None,
+            },
+            node: Node {
+                id: 1,
+                account_id: 1,
+                node_id: "!cafeb33d".to_string(),
+                short_name: "TEST".to_string(),
+                long_name: "Test User".to_string(),
+                in_board: None,
+                created_at_us: 0,
+                last_seen_at_us: 0,
+            },
         }
     }
     #[test]

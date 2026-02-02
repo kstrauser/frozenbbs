@@ -4,7 +4,7 @@ pub mod posts;
 pub mod queued_messages;
 pub mod users;
 use chrono::{Local, MappedLocalTime, TimeZone, Utc};
-pub use models::{Board, Post, User};
+pub use models::{Account, Board, Node, Post, User};
 mod models;
 mod schema;
 use crate::BBSConfig;
@@ -78,17 +78,24 @@ pub(crate) fn test_connection() -> SqliteConnection {
             description TEXT NOT NULL,
             created_at_us BIGINT NOT NULL
         );
-        CREATE TABLE users (
+        CREATE TABLE accounts (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            jackass BOOL NOT NULL DEFAULT FALSE,
+            bio TEXT,
+            created_at_us BIGINT NOT NULL,
+            last_acted_at_us BIGINT
+        );
+        CREATE TABLE nodes (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            account_id INTEGER NOT NULL,
             node_id TEXT NOT NULL UNIQUE,
             short_name TEXT NOT NULL,
             long_name TEXT NOT NULL,
-            jackass BOOL NOT NULL DEFAULT FALSE,
             in_board INTEGER,
             created_at_us BIGINT NOT NULL,
             last_seen_at_us BIGINT NOT NULL,
-            last_acted_at_us BIGINT,
-            bio TEXT,
+            FOREIGN KEY (account_id) REFERENCES accounts (id),
             FOREIGN KEY (in_board) REFERENCES boards (id)
         );
         CREATE TABLE posts (
@@ -98,7 +105,7 @@ pub(crate) fn test_connection() -> SqliteConnection {
             body TEXT NOT NULL,
             created_at_us BIGINT NOT NULL,
             UNIQUE(created_at_us),
-            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (user_id) REFERENCES accounts (id),
             FOREIGN KEY (board_id) REFERENCES boards (id)
         );
         CREATE TABLE board_states (
@@ -107,7 +114,7 @@ pub(crate) fn test_connection() -> SqliteConnection {
             board_id INTEGER NOT NULL,
             last_post_us BIGINT NOT NULL,
             FOREIGN KEY (board_id) REFERENCES boards (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            FOREIGN KEY (user_id) REFERENCES accounts (id)
         );
         CREATE TABLE queued_messages (
             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -116,8 +123,8 @@ pub(crate) fn test_connection() -> SqliteConnection {
             body TEXT NOT NULL,
             created_at_us BIGINT NOT NULL,
             sent_at_us BIGINT,
-            FOREIGN KEY (sender_id) REFERENCES users (id),
-            FOREIGN KEY (recipient_id) REFERENCES users (id)
+            FOREIGN KEY (sender_id) REFERENCES accounts (id),
+            FOREIGN KEY (recipient_id) REFERENCES accounts (id)
         );
         "#,
     )

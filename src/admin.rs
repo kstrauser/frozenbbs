@@ -11,7 +11,7 @@ pub fn user_list(conn: &mut SqliteConnection) {
         "\
 # BBS users
 
-| Created at          | Last seen at        | Last acted at       | Node ID    | Name | Long name                                |
+| Created at          | Last seen at        | Last acted at       | Node ID    | Name | Username / Long name                     |
 | ------------------- | ------------------- | ------------------- | ---------- | ---- | ---------------------------------------- |"
     );
     let mut jackasses = false;
@@ -21,12 +21,12 @@ pub fn user_list(conn: &mut SqliteConnection) {
             user.created_at(),
             user.last_seen_at(),
             user.last_acted_at(),
-            user.node_id,
-            if user.jackass { "*" } else { " " },
-            user.short_name,
-            user.long_name,
+            user.node_id(),
+            if user.jackass() { "*" } else { " " },
+            user.short_name(),
+            user.display_name(),
         );
-        if user.jackass {
+        if user.jackass() {
             jackasses = true;
         }
     }
@@ -104,15 +104,15 @@ pub fn post_read(conn: &mut SqliteConnection, board_id: i32) {
 
     println!(
         "\
-| Created at          | Node ID   | Body |
+| Created at          | User      | Body |
 | ------------------- | --------- | ---- |"
     );
 
     for (post, user) in post_info {
         println!(
-            "| {} | {} | {} |", // "| {} | {:3} | {:30} | {} |",
+            "| {} | {} | {} |",
             post.created_at(),
-            user.node_id,
+            user.display_name(),
             post.body,
         );
     }
@@ -120,6 +120,6 @@ pub fn post_read(conn: &mut SqliteConnection, board_id: i32) {
 
 pub fn post_add(conn: &mut SqliteConnection, board_id: i32, node_id: &str, content: &str) {
     let user = users::get(conn, node_id).unwrap();
-    let post = posts::add(conn, user.id, board_id, content).unwrap();
+    let post = posts::add(conn, user.account_id(), board_id, content).unwrap();
     println!("Created post #{}", post.id);
 }

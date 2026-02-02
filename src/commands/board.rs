@@ -12,7 +12,7 @@ const NO_SUCH_POST: &str = "There is no post here.";
 
 /// Does this board have any unread posts for this user?
 fn has_unread(conn: &mut SqliteConnection, user: &User, board_id: i32) -> bool {
-    let last_seen = board_states::get(conn, user.id, board_id);
+    let last_seen = board_states::get(conn, user.account_id(), board_id);
     posts::after(conn, board_id, last_seen).is_ok()
 }
 
@@ -54,7 +54,7 @@ pub fn lister(
         if unread_here {
             prefix += "!";
         }
-        if user.in_board.is_some() && user.in_board.unwrap() == board.id {
+        if user.in_board().is_some() && user.in_board().unwrap() == board.id {
             prefix += "*";
         }
         if !prefix.is_empty() {
@@ -62,7 +62,7 @@ pub fn lister(
         }
         out.push(format!("{prefix}{board}"));
     }
-    if user.in_board.is_some() {
+    if user.in_board().is_some() {
         linefeed!(out);
         out.push("* You are here.".to_string());
         if any_unread {
@@ -105,10 +105,10 @@ pub fn current(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
-    let Some(in_board) = user.in_board else {
+    let Some(in_board) = user.in_board() else {
         return NOT_IN_BOARD.into();
     };
-    let last_seen = board_states::get(conn, user.id, in_board);
+    let last_seen = board_states::get(conn, user.account_id(), in_board);
     if let Ok((post, post_user)) = posts::current(conn, in_board, last_seen) {
         post_print(&post, &post_user).into()
     } else {
@@ -123,12 +123,12 @@ pub fn previous(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
-    let Some(in_board) = user.in_board else {
+    let Some(in_board) = user.in_board() else {
         return NOT_IN_BOARD.into();
     };
-    let last_seen = board_states::get(conn, user.id, in_board);
+    let last_seen = board_states::get(conn, user.account_id(), in_board);
     if let Ok((post, post_user)) = posts::before(conn, in_board, last_seen) {
-        board_states::update(conn, user.id, in_board, post.created_at_us);
+        board_states::update(conn, user.account_id(), in_board, post.created_at_us);
         post_print(&post, &post_user).into()
     } else {
         NO_MORE_POSTS.into()
@@ -142,12 +142,12 @@ pub fn next(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
-    let Some(in_board) = user.in_board else {
+    let Some(in_board) = user.in_board() else {
         return NOT_IN_BOARD.into();
     };
-    let last_seen = board_states::get(conn, user.id, in_board);
+    let last_seen = board_states::get(conn, user.account_id(), in_board);
     if let Ok((post, post_user)) = posts::after(conn, in_board, last_seen) {
-        board_states::update(conn, user.id, in_board, post.created_at_us);
+        board_states::update(conn, user.account_id(), in_board, post.created_at_us);
         post_print(&post, &post_user).into()
     } else {
         NO_MORE_POSTS.into()
@@ -169,7 +169,7 @@ pub fn quick(
     // and avoids the common case where we'd be fetching *all* the data and then ignoring most
     // of it.
 
-    let in_board = user.in_board.unwrap_or(1);
+    let in_board = user.in_board().unwrap_or(1);
     // Make a series of board numbers, starting where the user currently is and going to the last,
     // then starting at the beginning and back to just before where the user started.
     //
@@ -180,16 +180,16 @@ pub fn quick(
 
     let mut out = vec![];
     for board_num in board_nums {
-        let last_seen = board_states::get(conn, user.id, board_num);
+        let last_seen = board_states::get(conn, user.account_id(), board_num);
         if let Ok((post, post_user)) = posts::after(conn, board_num, last_seen) {
-            if user.in_board.is_none() || board_num != in_board {
+            if user.in_board().is_none() || board_num != in_board {
                 let _ = users::enter_board(conn, user, board_num);
                 // Let the user know they're moving to a different board to read the new post.
                 let board = boards::get(conn, board_num).expect("this board should exist");
                 out.push(format!("In {}:", board.name));
                 linefeed!(out);
             }
-            board_states::update(conn, user.id, board_num, post.created_at_us);
+            board_states::update(conn, user.account_id(), board_num, post.created_at_us);
             out.extend(post_print(&post, &post_user));
             return out.into();
         }
@@ -206,13 +206,13 @@ pub fn write(
     user: &mut User,
     args: Vec<&str>,
 ) -> Replies {
-    let Some(in_board) = user.in_board else {
+    let Some(in_board) = user.in_board() else {
         return NOT_IN_BOARD.into();
     };
     let Some(body) = args.get(1) else {
         return ERROR_POSTING.into();
     };
-    let Ok(post) = posts::add(conn, user.id, in_board, body) else {
+    let Ok(post) = posts::add(conn, user.account_id(), in_board, body) else {
         log::error!("User {user} was unable to post {args:?} to {in_board}.");
         return ERROR_POSTING.into();
     };
@@ -227,17 +227,17 @@ pub fn author(
     user: &mut User,
     _args: Vec<&str>,
 ) -> Replies {
-    let Some(in_board) = user.in_board else {
+    let Some(in_board) = user.in_board() else {
         return NOT_IN_BOARD.into();
     };
-    let last_seen = board_states::get(conn, user.id, in_board);
+    let last_seen = board_states::get(conn, user.account_id(), in_board);
     if let Ok((_, post_user)) = posts::current(conn, in_board, last_seen) {
         let mut out = vec![
             format!("This post was written by {post_user}."),
-            format!("Last seen: {}", user.last_seen_at()),
-            format!("Last active: {}", user.last_acted_at()),
+            format!("Last seen: {}", post_user.last_seen_at()),
+            format!("Last active: {}", post_user.last_acted_at()),
         ];
-        if let Some(bio) = &post_user.bio {
+        if let Some(bio) = post_user.bio() {
             if !bio.is_empty() {
                 linefeed!(out);
                 out.push("Bio:".to_string());
