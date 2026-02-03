@@ -201,9 +201,9 @@ pub struct User {
 impl fmt::Display for User {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(username) = &self.account.username {
-            write!(f, "{}", username)
+            write!(f, "{} (#{})", username, self.account.id)
         } else {
-            write!(f, "{}", self.node.long_name)
+            write!(f, "{} (#{})", self.node.long_name, self.account.id)
         }
     }
 }
@@ -242,9 +242,10 @@ impl User {
     pub fn long_name(&self) -> &str {
         &self.node.long_name
     }
-    /// Returns the display name: username if set, otherwise long_name from node
-    pub fn display_name(&self) -> &str {
-        self.account.username.as_deref().unwrap_or(&self.node.long_name)
+    /// Returns the display name with account ID: "Name (#id)"
+    pub fn display_name(&self) -> String {
+        let name = self.account.username.as_deref().unwrap_or(&self.node.long_name);
+        format!("{} (#{})", name, self.account.id)
     }
 }
 
@@ -386,27 +387,27 @@ mod tests {
     }
 
     #[test]
-    fn user_display_shows_username_when_set() {
+    fn user_display_shows_username_with_account_id() {
         let user = make_user(Some("alice"));
-        assert_eq!(format!("{}", user), "alice");
+        assert_eq!(format!("{}", user), "alice (#1)");
     }
 
     #[test]
-    fn user_display_shows_long_name_when_no_username() {
+    fn user_display_shows_long_name_with_account_id_when_no_username() {
         let user = make_user(None);
-        assert_eq!(format!("{}", user), "Test Node");
+        assert_eq!(format!("{}", user), "Test Node (#1)");
     }
 
     #[test]
-    fn user_display_name_returns_username_when_set() {
+    fn user_display_name_returns_username_with_account_id() {
         let user = make_user(Some("bob"));
-        assert_eq!(user.display_name(), "bob");
+        assert_eq!(user.display_name(), "bob (#1)");
     }
 
     #[test]
-    fn user_display_name_returns_long_name_when_no_username() {
+    fn user_display_name_returns_long_name_with_account_id_when_no_username() {
         let user = make_user(None);
-        assert_eq!(user.display_name(), "Test Node");
+        assert_eq!(user.display_name(), "Test Node (#1)");
     }
 
     #[test]
