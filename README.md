@@ -175,6 +175,56 @@ Observed node at 1732851007: !f5f5a1c1/HPT1:Depeche Node
 
 There are several commands and subcommands, each with a handful of arguments. I tried to make the UI reasonably discoverable. If you run `frozenbbs`, it'll show you the available commands. `frozenbbs foo` will show the subcommands under `foo`. `frozenbbs foo bar` will show any required arguments for `bar`. Use `-h` and `--help` to explore!
 
+# Multi-node accounts and invitations
+
+If you have more than one Meshtastic radio, you can link them all to a single BBS account. This means your posts, DMs, board read positions, and bio are shared across all your nodes. The invitation system handles joining and leaving multi-node accounts.
+
+**How it works:** One user sends an invitation to another node. That node gets a DM notification, then accepts (with a password shared out-of-band) or denies the invitation. On acceptance, the invited node joins the sender's account. It's like adding a new device to your existing login.
+
+By default, new accounts block incoming invitations. You have to opt in with `invite unblock` before anyone can invite you.
+
+**Invitation commands:**
+
+| Command | What it does |
+| --- | --- |
+| `invite` | Show invitation help |
+| `invite block` | Block incoming invitations (the default) |
+| `invite unblock` | Allow incoming invitations |
+| `invite !nodeid` | Send an invitation to another node |
+| `invite accept <password>` | Accept a pending invitation |
+| `invite accept <password> migrate` | Accept and move your old posts/DMs to the new account |
+| `invite deny` | Deny a pending invitation |
+| `invite pending` | View pending invitations and time remaining |
+| `invite leave` | Leave a multi-node account (you get a fresh standalone account) |
+| `invite remove !nodeid` | Remove another node from your shared account |
+
+**Example session:**
+
+Alice wants to add her second radio (`!alice002`) to her existing account on `!alice001`:
+
+```
+# On !alice001: allow invitations on the account, then invite the second radio
+Command: invite unblock
+Invitations are now allowed.
+
+Command: invite !alice002
+Invitation sent to !alice002. Password: bozwenkatfig
+
+# Alice tells her other radio the password over a secure channel
+
+# On !alice002: accept the invitation with the password
+Command: invite accept bozwenkatfig migrate
+Invitation accepted. You are now part of account #1. Your posts and messages have been migrated.
+```
+
+A few things to keep in mind:
+
+- The password is pronounceable (like `bozwenkatfig`) so it's easy to share by voice or text. You'll need to pass it to the invited node yourself -- the BBS doesn't include it in the notification DM.
+- Only one outbound invitation at a time. Invitations expire after 24 hours. After a denial or expiry, there's a 1-hour cooldown before you can send another.
+- Accepting with `migrate` reassigns your old posts and DMs to the new account. Without it, your old account becomes a ghost -- the posts stay but nobody's logged into it.
+- `invite leave` and `invite remove` create a new blank account for the departing node. Posts and messages stay with the original account.
+- The `?` status command shows which nodes are on your account and whether invitations are blocked or allowed.
+
 # Design notes
 
 The `frozenbbs` program doesn't cache any state in RAM. When the event loop processes a command, it calls the related command function with information about the user running it and any arguments they sent. That command function is responsible for gathering any additional information needed to fulfill the request. For example, the command to read the next post in the user's current message board reads the necessary information from the database. This has a few nice effects:
