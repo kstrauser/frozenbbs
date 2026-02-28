@@ -33,8 +33,8 @@ fn get_account_by_id(conn: &mut SqliteConnection, account_id: i32) -> QueryResul
 
 /// Combine a Node and Account into a User
 fn make_user(conn: &mut SqliteConnection, node: Node) -> User {
-    let account = get_account_by_id(conn, node.account_id)
-        .expect("node should always have a valid account");
+    let account =
+        get_account_by_id(conn, node.account_id).expect("node should always have a valid account");
     User { account, node }
 }
 
@@ -162,7 +162,13 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
                     .get_result(conn)
                     .expect("should be able to update an account");
 
-                Ok((User { account: updated_account, node: updated_node }, has_acted))
+                Ok((
+                    User {
+                        account: updated_account,
+                        node: updated_node,
+                    },
+                    has_acted,
+                ))
             } else {
                 // The node is new. Create an account and insert the node.
                 let new_account = AccountNew {
@@ -207,8 +213,11 @@ pub fn all(conn: &mut SqliteConnection) -> Vec<User> {
         .order(nodes_dsl::created_at_us)
         .load(conn)
         .expect("Error loading nodes");
-    
-    nodes.into_iter().map(|node| make_user(conn, node)).collect()
+
+    nodes
+        .into_iter()
+        .map(|node| make_user(conn, node))
+        .collect()
 }
 
 pub fn ban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
@@ -216,7 +225,10 @@ pub fn ban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
         .set(accounts_dsl::jackass.eq(true))
         .returning(Account::as_returning())
         .get_result(conn)?;
-    Ok(User { account, node: user.node.clone() })
+    Ok(User {
+        account,
+        node: user.node.clone(),
+    })
 }
 
 pub fn unban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
@@ -224,7 +236,10 @@ pub fn unban(conn: &mut SqliteConnection, user: &User) -> QueryResult<User> {
         .set(accounts_dsl::jackass.eq(false))
         .returning(Account::as_returning())
         .get_result(conn)?;
-    Ok(User { account, node: user.node.clone() })
+    Ok(User {
+        account,
+        node: user.node.clone(),
+    })
 }
 
 pub fn get(conn: &mut SqliteConnection, node_id: &str) -> QueryResult<User> {
@@ -292,7 +307,10 @@ pub fn enter_board(conn: &mut SqliteConnection, user: &User, board_id: i32) -> Q
         .set(accounts_dsl::in_board.eq(board_id))
         .returning(Account::as_returning())
         .get_result(conn)?;
-    Ok(User { account, node: user.node.clone() })
+    Ok(User {
+        account,
+        node: user.node.clone(),
+    })
 }
 
 pub fn recently_seen(
@@ -398,12 +416,19 @@ pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> Result
         .returning(Account::as_returning())
         .get_result(conn)
         .expect("we must be able to update accounts");
-    
-    Ok(User { account, node: user.node.clone() })
+
+    Ok(User {
+        account,
+        node: user.node.clone(),
+    })
 }
 
 /// Update the user's invite_allowed setting.
-pub fn update_invite_allowed(conn: &mut SqliteConnection, user: &User, invite_allowed: bool) -> Result<User> {
+pub fn update_invite_allowed(
+    conn: &mut SqliteConnection,
+    user: &User,
+    invite_allowed: bool,
+) -> Result<User> {
     let account_update = AccountUpdate {
         username: None,
         last_acted_at_us: None,
@@ -418,18 +443,46 @@ pub fn update_invite_allowed(conn: &mut SqliteConnection, user: &User, invite_al
         .get_result(conn)
         .expect("we must be able to update accounts");
 
-    Ok(User { account, node: user.node.clone() })
+    Ok(User {
+        account,
+        node: user.node.clone(),
+    })
+}
+
+/// Move a node to a different account. Returns the updated node.
+pub fn move_node_to_account(
+    conn: &mut SqliteConnection,
+    node: &Node,
+    new_account_id: i32,
+) -> QueryResult<Node> {
+    diesel::update(node)
+        .set(nodes_dsl::account_id.eq(new_account_id))
+        .returning(Node::as_returning())
+        .get_result(conn)
+}
+
+/// Delete an account by its id. The account must have no nodes or foreign key constraints
+/// should be cleaned up before calling this.
+pub fn delete_account(conn: &mut SqliteConnection, account_id: i32) -> QueryResult<usize> {
+    diesel::delete(accounts_dsl::accounts.filter(accounts_dsl::id.eq(account_id))).execute(conn)
 }
 
 /// Update the user's username
-pub fn update_username(conn: &mut SqliteConnection, user: &User, username: Option<&str>) -> Result<User> {
+pub fn update_username(
+    conn: &mut SqliteConnection,
+    user: &User,
+    username: Option<&str>,
+) -> Result<User> {
     let account: Account = diesel::update(&user.account)
         .set(accounts_dsl::username.eq(username))
         .returning(Account::as_returning())
         .get_result(conn)
         .expect("we must be able to update accounts");
-    
-    Ok(User { account, node: user.node.clone() })
+
+    Ok(User {
+        account,
+        node: user.node.clone(),
+    })
 }
 
 #[cfg(test)]
@@ -440,11 +493,7 @@ mod tests {
     use std::time::Duration;
 
     /// Helper to add a second node to an existing account for testing multi-node scenarios
-    fn add_node_to_account(
-        conn: &mut SqliteConnection,
-        account_id: i32,
-        node_id: &str,
-    ) -> Node {
+    fn add_node_to_account(conn: &mut SqliteConnection, account_id: i32, node_id: &str) -> Node {
         let now = now_as_useconds();
         let new_node = NodeNew {
             account_id,
@@ -471,7 +520,10 @@ mod tests {
         assert!(!existed);
         assert_eq!(user.node.short_name, "????");
         let first_seen = user.node.last_seen_at_us;
-        let first_acted = user.account.last_acted_at_us.expect("user should have acted");
+        let first_acted = user
+            .account
+            .last_acted_at_us
+            .expect("user should have acted");
 
         let (updated, existed_again) =
             record(&mut conn, "!00000001").expect("record should update user");
@@ -540,7 +592,10 @@ mod tests {
         assert!(account_ids.contains(&user2.account.id));
 
         // Account2's entry should show node2b (most recently seen)
-        let user2_entry = seen.iter().find(|u| u.account.id == user2.account.id).unwrap();
+        let user2_entry = seen
+            .iter()
+            .find(|u| u.account.id == user2.account.id)
+            .unwrap();
         assert_eq!(user2_entry.node.node_id, node2b.node_id);
     }
 
@@ -562,7 +617,10 @@ mod tests {
         assert_eq!(active.len(), 2, "should return 2 accounts, not 3 nodes");
 
         // The most recently seen node for account2 should be node2b
-        let user2_entry = active.iter().find(|u| u.account.id == user2.account.id).unwrap();
+        let user2_entry = active
+            .iter()
+            .find(|u| u.account.id == user2.account.id)
+            .unwrap();
         assert_eq!(user2_entry.node.node_id, node2b.node_id);
     }
 

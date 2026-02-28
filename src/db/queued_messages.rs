@@ -58,6 +58,26 @@ pub fn queue_by_account_ids(
         .expect("should always be able to insert a new queued message"))
 }
 
+/// Reassign queued messages from one account to another.
+/// Updates both sender_account_id and recipient_account_id where they match the old account.
+pub fn migrate_account(
+    conn: &mut SqliteConnection,
+    old_account_id: i32,
+    new_account_id: i32,
+) -> QueryResult<(usize, usize)> {
+    let sender_count =
+        diesel::update(dsl::queued_messages.filter(dsl::sender_account_id.eq(old_account_id)))
+            .set(dsl::sender_account_id.eq(new_account_id))
+            .execute(conn)?;
+
+    let recipient_count =
+        diesel::update(dsl::queued_messages.filter(dsl::recipient_account_id.eq(old_account_id)))
+            .set(dsl::recipient_account_id.eq(new_account_id))
+            .execute(conn)?;
+
+    Ok((sender_count, recipient_count))
+}
+
 /// Mark a message as sent.
 pub fn sent(conn: &mut SqliteConnection, message: &QueuedMessage) {
     let now = now_as_useconds();

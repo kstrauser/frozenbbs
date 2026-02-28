@@ -247,7 +247,11 @@ impl User {
     }
     /// Returns the display name with account ID: "Name (#id)"
     pub fn display_name(&self) -> String {
-        let name = self.account.username.as_deref().unwrap_or(&self.node.long_name);
+        let name = self
+            .account
+            .username
+            .as_deref()
+            .unwrap_or(&self.node.long_name);
         format!("{} (#{})", name, self.account.id)
     }
 }

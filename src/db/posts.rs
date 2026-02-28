@@ -7,16 +7,42 @@ use diesel::prelude::*;
 use validator::Validate as _;
 
 /// Helper to build a User from an Account. Gets the first node for the account.
+/// For ghost accounts (no nodes), creates a placeholder node so posts remain displayable.
 fn make_user(conn: &mut SqliteConnection, account: Account) -> User {
-    let node: Node = nodes_dsl::nodes
+    let node_result: QueryResult<Node> = nodes_dsl::nodes
         .select(Node::as_select())
         .filter(nodes_dsl::account_id.eq(account.id))
-        .first(conn)
-        .expect("account should have at least one node");
-    User { account, node }
+        .first(conn);
+    match node_result {
+        Ok(node) => User { account, node },
+        Err(_) => {
+            // Ghost account (no nodes) — create a placeholder node for display purposes.
+            let placeholder_node = Node {
+                id: 0,
+                account_id: account.id,
+                node_id: format!("#{}", account.id),
+                short_name: "??".to_string(),
+                long_name: account
+                    .username
+                    .clone()
+                    .unwrap_or_else(|| format!("Ghost #{}", account.id)),
+                created_at_us: account.created_at_us,
+                last_seen_at_us: account.created_at_us,
+            };
+            User {
+                account,
+                node: placeholder_node,
+            }
+        }
+    }
 }
 
-pub fn add(conn: &mut SqliteConnection, account_id: i32, board_id: i32, body: &str) -> Result<Post> {
+pub fn add(
+    conn: &mut SqliteConnection,
+    account_id: i32,
+    board_id: i32,
+    body: &str,
+) -> Result<Post> {
     let new_post = NewPost {
         account_id,
         board_id,
@@ -40,8 +66,9 @@ pub fn in_board(conn: &mut SqliteConnection, board_id: i32) -> Vec<(Post, User)>
         .order(posts_dsl::created_at_us)
         .load::<(Post, Account)>(conn)
         .expect("Error loading posts");
-    
-    results.into_iter()
+
+    results
+        .into_iter()
         .map(|(post, account)| (post, make_user(conn, account)))
         .collect()
 }
@@ -97,6 +124,17 @@ pub fn before(
         .limit(1)
         .first::<(Post, Account)>(conn)?;
     Ok((post, make_user(conn, account)))
+}
+
+/// Reassign all posts from one account to another.
+pub fn migrate_account(
+    conn: &mut SqliteConnection,
+    old_account_id: i32,
+    new_account_id: i32,
+) -> QueryResult<usize> {
+    diesel::update(posts_dsl::posts.filter(posts_dsl::account_id.eq(old_account_id)))
+        .set(posts_dsl::account_id.eq(new_account_id))
+        .execute(conn)
 }
 
 /// Get the number of posts

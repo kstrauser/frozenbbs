@@ -1,6 +1,7 @@
 use super::Replies;
-use crate::db::{invitations, now_as_useconds, queued_messages, users, User};
+use crate::db::{board_states, invitations, now_as_useconds, posts, queued_messages, users, User};
 use crate::{canonical_node_id, BBSConfig};
+use diesel::Connection as _;
 use diesel::SqliteConnection;
 use rand::Rng;
 
@@ -17,6 +18,10 @@ const SENDER_BANNED: &str = "Your account is not allowed to send invitations.";
 const INFLIGHT_INVITATION: &str = "You already have a pending outbound invitation.";
 const NO_PENDING_INVITATION: &str = "No pending invitation to deny.";
 const NO_PENDING_INVITATIONS: &str = "No pending invitations.";
+const WRONG_PASSWORD: &str = "Incorrect password.";
+const NO_PENDING_ACCEPT: &str = "No pending invitation to accept.";
+const INVITATION_EXPIRED: &str = "This invitation has expired.";
+const ACCEPT_BANNED: &str = "Your account is not allowed to accept invitations.";
 
 /// Generate a pronounceable, cryptographically random password of ~12 characters.
 ///
@@ -83,6 +88,101 @@ pub fn deny(
 
     invitations::deny(conn, invitation).expect("should be able to deny invitation");
     "Invitation denied.".into()
+}
+
+/// Accept a pending inbound invitation.
+#[allow(clippy::needless_pass_by_value)]
+pub fn accept(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    args: Vec<&str>,
+) -> Replies {
+    let Some(password) = args.get(1) else {
+        return "Usage: invite accept <password> [migrate]".into();
+    };
+    let migrate = args.get(2).is_some();
+
+    // (4) Reject if accepting node's account is banned
+    if user.jackass() {
+        return ACCEPT_BANNED.into();
+    }
+
+    // (1) Look up the calling node's pending inbound invitation (non-expired)
+    let pending = invitations::get_pending_for_invitee(conn, user.node.id);
+    let Some(invitation) = pending.first() else {
+        return NO_PENDING_ACCEPT.into();
+    };
+
+    // (5) Check if invitation is expired (redundant with get_pending_for_invitee filtering,
+    //     but kept for safety)
+    let now = now_as_useconds();
+    if invitation.created_at_us + EXPIRY_US <= now {
+        return INVITATION_EXPIRED.into();
+    }
+
+    // (3) Verify the accepting node is the intended target
+    if invitation.invitee_node_id != user.node.id {
+        return NO_PENDING_ACCEPT.into();
+    }
+
+    // (2) Validate the password matches
+    if invitation.password != *password {
+        return WRONG_PASSWORD.into();
+    }
+
+    let old_account_id = user.account_id();
+    let new_account_id = invitation.sender_account_id;
+
+    // (6-10) Perform the acceptance in a transaction
+    conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        // (6) Move the node from its old account to the inviter's account
+        users::move_node_to_account(conn, &user.node, new_account_id)
+            .expect("should be able to move node to new account");
+
+        // (7) If migrate: reassign posts, DMs, delete board_states, delete old account
+        if migrate {
+            posts::migrate_account(conn, old_account_id, new_account_id)
+                .expect("should be able to migrate posts");
+            queued_messages::migrate_account(conn, old_account_id, new_account_id)
+                .expect("should be able to migrate queued messages");
+            board_states::delete_for_account(conn, old_account_id)
+                .expect("should be able to delete board states");
+            users::delete_account(conn, old_account_id)
+                .expect("should be able to delete old account");
+        }
+        // (8) If NOT migrate: old account becomes a ghost (no action needed)
+
+        // (9) Delete invitee's own outbound invitation if one exists
+        invitations::delete_pending_for_sender(conn, old_account_id);
+
+        // (10) Mark the invitation as accepted
+        invitations::accept(conn, invitation)
+            .expect("should be able to mark invitation as accepted");
+
+        Ok(())
+    })
+    .expect("accept transaction should succeed");
+
+    // Update the user's in-memory state to reflect the new account
+    let new_account =
+        users::get_account(conn, new_account_id).expect("new account should exist after accept");
+    user.account = new_account;
+
+    // (11) Return confirmation
+    if migrate {
+        format!(
+            "Invitation accepted. You are now part of account #{}. Your posts and messages have been migrated.",
+            new_account_id
+        )
+        .into()
+    } else {
+        format!(
+            "Invitation accepted. You are now part of account #{}.",
+            new_account_id
+        )
+        .into()
+    }
 }
 
 /// Format a duration in microseconds as a human-readable string.
@@ -1124,6 +1224,441 @@ mod tests {
         // Target should see no pending invitations
         let replies = pending(&mut conn, &cfg, &mut target, vec!["invite pending"]);
         assert_eq!(get_reply_text(&replies), NO_PENDING_INVITATIONS);
+    }
+
+    // ========== Accept tests ==========
+
+    /// Helper: Send an invitation from sender to target and return the password.
+    fn send_invitation(
+        conn: &mut SqliteConnection,
+        cfg: &BBSConfig,
+        sender: &mut User,
+        target_node_id: &str,
+    ) -> String {
+        let replies = send(conn, cfg, sender, vec!["invite", target_node_id]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.starts_with("Invitation sent"),
+            "Expected invitation success, got: {}",
+            text
+        );
+        text.rsplit("Password: ")
+            .next()
+            .expect("reply should contain password")
+            .to_string()
+    }
+
+    #[test]
+    fn test_accept_success_without_migrate() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000001", false);
+        let mut target = create_test_user(&mut conn, "!dd000002", true);
+
+        let sender_account_id = sender.account_id();
+        let target_old_account_id = target.account_id();
+
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000002");
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", &password],
+        );
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("Invitation accepted"),
+            "Expected acceptance message, got: {}",
+            text
+        );
+        assert!(
+            !text.contains("migrated"),
+            "Without migrate, should not mention migration, got: {}",
+            text
+        );
+
+        // Verify target's node is now on sender's account
+        let target_reloaded = users::get(&mut conn, "!dd000002").expect("target should exist");
+        assert_eq!(target_reloaded.account_id(), sender_account_id);
+
+        // Verify old account still exists (ghost)
+        let old_account = users::get_account(&mut conn, target_old_account_id);
+        assert!(
+            old_account.is_ok(),
+            "old account should still exist as ghost"
+        );
+
+        // Verify no nodes on old account
+        let old_nodes = users::get_nodes_for_account(&mut conn, target_old_account_id);
+        assert!(
+            old_nodes.is_empty(),
+            "old account should have no nodes (ghost)"
+        );
+
+        // Verify invitation is marked as accepted
+        let pending = invitations::get_pending_for_invitee(&mut conn, target.node.id);
+        assert!(pending.is_empty(), "invitation should no longer be pending");
+    }
+
+    #[test]
+    fn test_accept_success_with_migrate() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000010", false);
+        let mut target = create_test_user(&mut conn, "!dd000011", true);
+
+        let sender_account_id = sender.account_id();
+        let target_old_account_id = target.account_id();
+
+        // Create a board and post as target (to verify migration)
+        use crate::db::boards;
+        let board =
+            boards::add(&mut conn, "Test Board", "For testing").expect("should create board");
+        let _post =
+            crate::db::posts::add(&mut conn, target_old_account_id, board.id, "Target's post")
+                .expect("should create post");
+
+        // Queue a message from target
+        queued_messages::queue_by_account_ids(
+            &mut conn,
+            target_old_account_id,
+            sender_account_id,
+            "test DM",
+        )
+        .expect("should queue message");
+
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000011");
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", &password, "migrate"],
+        );
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("migrated"),
+            "With migrate, should mention migration, got: {}",
+            text
+        );
+
+        // Verify target's node is now on sender's account
+        let target_reloaded = users::get(&mut conn, "!dd000011").expect("target should exist");
+        assert_eq!(target_reloaded.account_id(), sender_account_id);
+
+        // Verify old account was deleted
+        let old_account = users::get_account(&mut conn, target_old_account_id);
+        assert!(
+            old_account.is_err(),
+            "old account should be deleted after migrate"
+        );
+
+        // Verify posts were migrated to new account
+        use crate::db::posts;
+        let board_posts = posts::in_board(&mut conn, board.id);
+        assert_eq!(board_posts.len(), 1);
+        assert_eq!(board_posts[0].0.account_id, sender_account_id);
+    }
+
+    #[test]
+    fn test_accept_wrong_password() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000020", false);
+        let mut target = create_test_user(&mut conn, "!dd000021", true);
+
+        let target_original_account = target.account_id();
+
+        let _password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000021");
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", "wrongpassword"],
+        );
+        assert_eq!(get_reply_text(&replies), WRONG_PASSWORD);
+
+        // Verify node didn't move
+        let target_reloaded = users::get(&mut conn, "!dd000021").expect("target should exist");
+        assert_eq!(target_reloaded.account_id(), target_original_account);
+    }
+
+    #[test]
+    fn test_accept_expired_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let sender = create_test_user(&mut conn, "!dd000030", false);
+        let mut target = create_test_user(&mut conn, "!dd000031", true);
+
+        // Create an expired invitation (>24 hours old)
+        let old_time = now_as_useconds() - EXPIRY_US - 1_000_000;
+        invitations::create_with_timestamp(
+            &mut conn,
+            sender.account_id(),
+            target.node.id,
+            "testpassword",
+            old_time,
+        )
+        .expect("should create invitation");
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", "testpassword"],
+        );
+        // Expired invitations are filtered out by get_pending_for_invitee
+        assert_eq!(get_reply_text(&replies), NO_PENDING_ACCEPT);
+    }
+
+    #[test]
+    fn test_accept_no_pending_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!dd000040", false);
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut user,
+            vec!["invite accept", "somepassword"],
+        );
+        assert_eq!(get_reply_text(&replies), NO_PENDING_ACCEPT);
+    }
+
+    #[test]
+    fn test_accept_non_target_node_rejected() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000050", false);
+        let _target = create_test_user(&mut conn, "!dd000051", true);
+        let mut interloper = create_test_user(&mut conn, "!dd000052", false);
+
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000051");
+
+        // Interloper tries to accept with correct password
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut interloper,
+            vec!["invite accept", &password],
+        );
+        // Interloper has no pending inbound invitation
+        assert_eq!(get_reply_text(&replies), NO_PENDING_ACCEPT);
+    }
+
+    #[test]
+    fn test_accept_banned_node_rejected() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000060", false);
+        let mut target = create_test_user(&mut conn, "!dd000061", true);
+
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000061");
+
+        // Ban the target
+        users::ban(&mut conn, &target).expect("should ban");
+        target.account.jackass = true;
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", &password],
+        );
+        assert_eq!(get_reply_text(&replies), ACCEPT_BANNED);
+    }
+
+    #[test]
+    fn test_accept_cleans_up_outbound_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000070", false);
+        let mut target = create_test_user(&mut conn, "!dd000071", true);
+        let _other = create_test_user(&mut conn, "!dd000072", true);
+
+        // Target sends their own outbound invitation to someone else
+        let _target_password = send_invitation(&mut conn, &cfg, &mut target, "!dd000072");
+
+        // Now sender invites target
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000071");
+
+        // Verify target has an outbound invitation
+        let outbound_before = invitations::get_pending_for_sender(&mut conn, target.account_id());
+        assert_eq!(
+            outbound_before.len(),
+            1,
+            "target should have outbound invitation"
+        );
+
+        // Target accepts sender's invitation
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", &password],
+        );
+        assert!(get_reply_text(&replies).contains("Invitation accepted"));
+
+        // Verify target's outbound invitation was cleaned up
+        // Note: after accept, target's old account_id may have been used for the outbound.
+        // The delete_pending_for_sender used old_account_id which is target's original account.
+        let outbound_after = invitations::get_pending_for_sender(&mut conn, target.account_id());
+        // target.account_id is now sender's account. Check the old account too.
+        assert!(
+            outbound_after.is_empty(),
+            "target's outbound invitation on new account should be clean"
+        );
+    }
+
+    #[test]
+    fn test_accept_rate_limit_reset_for_sender() {
+        // VAL-SEND-006: After acceptance, sender can immediately send another invitation
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000080", false);
+        let mut target = create_test_user(&mut conn, "!dd000081", true);
+        let _next_target = create_test_user(&mut conn, "!dd000082", true);
+
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000081");
+
+        // Target accepts
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", &password],
+        );
+        assert!(get_reply_text(&replies).contains("Invitation accepted"));
+
+        // Sender should be able to send immediately (rate limit reset)
+        let replies = send(
+            &mut conn,
+            &cfg,
+            &mut sender,
+            vec!["invite !dd000082", "!dd000082"],
+        );
+        let text = get_reply_text(&replies);
+        assert!(
+            text.starts_with("Invitation sent"),
+            "After acceptance, sender should be able to send immediately, got: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_accept_both_nodes_on_same_account() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!dd000090", false);
+        let mut target = create_test_user(&mut conn, "!dd000091", true);
+
+        let sender_account_id = sender.account_id();
+
+        let password = send_invitation(&mut conn, &cfg, &mut sender, "!dd000091");
+
+        let replies = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", &password],
+        );
+        assert!(get_reply_text(&replies).contains("Invitation accepted"));
+
+        // Both nodes should now be on the same account
+        let sender_reloaded = users::get(&mut conn, "!dd000090").expect("sender exists");
+        let target_reloaded = users::get(&mut conn, "!dd000091").expect("target exists");
+        assert_eq!(sender_reloaded.account_id(), sender_account_id);
+        assert_eq!(target_reloaded.account_id(), sender_account_id);
+
+        // Account should have 2 nodes
+        let nodes = users::get_nodes_for_account(&mut conn, sender_account_id);
+        assert_eq!(nodes.len(), 2);
+    }
+
+    // ========== Ghost account display tests ==========
+
+    #[test]
+    fn test_ghost_account_posts_display_without_panic() {
+        let mut conn = db::test_connection();
+
+        // Create a user who will become a ghost
+        let (ghost_user, _) = users::record(&mut conn, "!ee000001").expect("user");
+        let ghost_account_id = ghost_user.account_id();
+
+        // Create a board and post as this user
+        use crate::db::boards;
+        let board =
+            boards::add(&mut conn, "Ghost Board", "Testing ghosts").expect("should create board");
+        let _post = crate::db::posts::add(&mut conn, ghost_account_id, board.id, "Ghost's post")
+            .expect("should create post");
+
+        // Create another account and move the node there (simulating accept without migrate)
+        let (other_user, _) = users::record(&mut conn, "!ee000002").expect("user2");
+        users::move_node_to_account(&mut conn, &ghost_user.node, other_user.account_id())
+            .expect("should move node");
+
+        // Now the ghost account has no nodes, but has posts.
+        // Reading posts should NOT panic.
+        let posts_in_board = crate::db::posts::in_board(&mut conn, board.id);
+        assert_eq!(posts_in_board.len(), 1);
+        assert_eq!(posts_in_board[0].0.body, "Ghost's post");
+
+        // The user display should contain ghost info
+        let display = format!("{}", posts_in_board[0].1);
+        assert!(
+            display.contains(&format!("#{}", ghost_account_id)),
+            "Ghost user display should show account ID, got: {}",
+            display
+        );
+    }
+
+    #[test]
+    fn test_ghost_account_post_navigation_without_panic() {
+        let mut conn = db::test_connection();
+
+        // Create ghost user
+        let (ghost_user, _) = users::record(&mut conn, "!ee000010").expect("user");
+        let ghost_account_id = ghost_user.account_id();
+
+        // Create a board
+        use crate::db::boards;
+        let board =
+            boards::add(&mut conn, "Nav Board", "Testing nav").expect("should create board");
+
+        // Create a post as normal user first
+        let (normal_user, _) = users::record(&mut conn, "!ee000011").expect("user2");
+        let _post1 =
+            crate::db::posts::add(&mut conn, normal_user.account_id(), board.id, "Normal post")
+                .expect("should create post");
+        std::thread::sleep(std::time::Duration::from_micros(10));
+
+        // Create a post as ghost-to-be
+        let _post2 = crate::db::posts::add(&mut conn, ghost_account_id, board.id, "Ghost post")
+            .expect("should create post");
+
+        // Move ghost's node away
+        users::move_node_to_account(&mut conn, &ghost_user.node, normal_user.account_id())
+            .expect("should move node");
+
+        // Navigate after, before, current — none should panic
+        let result = crate::db::posts::after(&mut conn, board.id, 0);
+        assert!(result.is_ok(), "after should work with ghost account posts");
+
+        let (first_post, _) = result.unwrap();
+        let result = crate::db::posts::after(&mut conn, board.id, first_post.created_at_us);
+        assert!(result.is_ok(), "after should work for ghost account post");
+
+        let (second_post, ghost_display) = result.unwrap();
+        assert_eq!(second_post.body, "Ghost post");
+        let display = format!("{}", ghost_display);
+        assert!(
+            display.contains(&format!("#{}", ghost_account_id)),
+            "Ghost display should contain account ID, got: {}",
+            display
+        );
     }
 
     // ========== Format remaining tests ==========

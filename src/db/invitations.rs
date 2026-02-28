@@ -118,6 +118,21 @@ pub fn create_with_timestamp(
         .expect("should always be able to insert a new invitation"))
 }
 
+/// Delete all pending (non-expired, non-accepted, non-denied) outbound invitations for an account.
+/// Used when an invitee accepts, to clean up any outbound invitation they may have sent.
+pub fn delete_pending_for_sender(conn: &mut SqliteConnection, sender_account_id: i32) -> usize {
+    let cutoff = now_as_useconds() - EXPIRY_US;
+    diesel::delete(
+        dsl::invitations
+            .filter(dsl::sender_account_id.eq(sender_account_id))
+            .filter(dsl::accepted_at_us.is_null())
+            .filter(dsl::denied_at_us.is_null())
+            .filter(dsl::created_at_us.gt(cutoff)),
+    )
+    .execute(conn)
+    .expect("should always be able to delete invitations")
+}
+
 /// Mark an invitation as denied.
 pub fn deny(conn: &mut SqliteConnection, invitation: &Invitation) -> QueryResult<Invitation> {
     let now = now_as_useconds();

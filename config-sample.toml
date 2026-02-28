@@ -185,6 +185,13 @@ available = "always"
 func = "invite::pending"
 
 [[menus.Invite.commands]]
+arg = "INVITE ACCEPT pw [migrate]"
+help = "Accept a pending invitation"
+pattern = "invite\\s+accept\\s+(\\S+)(\\s+migrate)?"
+available = "always"
+func = "invite::accept"
+
+[[menus.Invite.commands]]
 arg = "INVITE !node"
 help = "Send an invitation to a node"
 pattern = "invite\\s+(!\\S+)"

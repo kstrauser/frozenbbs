@@ -17,6 +17,11 @@ pub fn get(conn: &mut SqliteConnection, account_id: i32, board_id: i32) -> i64 {
     }
 }
 
+/// Delete all board states for an account.
+pub fn delete_for_account(conn: &mut SqliteConnection, account_id: i32) -> QueryResult<usize> {
+    diesel::delete(dsl::board_states.filter(dsl::account_id.eq(account_id))).execute(conn)
+}
+
 /// Store the timestamp of the post the account just read in that board.
 pub fn update(conn: &mut SqliteConnection, account_id: i32, board_id: i32, last_post_us: i64) {
     conn.transaction::<_, diesel::result::Error, _>(|conn| {
