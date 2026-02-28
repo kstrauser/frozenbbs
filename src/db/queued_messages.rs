@@ -36,6 +36,28 @@ pub fn post(
         .expect("should always be able to insert a new post"))
 }
 
+/// Queue a message by account IDs directly (for system-generated messages like invitations).
+pub fn queue_by_account_ids(
+    conn: &mut SqliteConnection,
+    sender_account_id: i32,
+    recipient_account_id: i32,
+    body: &str,
+) -> Result<QueuedMessage> {
+    let new_post = QueuedMessageNew {
+        sender_account_id,
+        recipient_account_id,
+        body,
+        created_at_us: &now_as_useconds(),
+    };
+    new_post.validate()?;
+
+    Ok(diesel::insert_into(table)
+        .values(&new_post)
+        .returning(QueuedMessage::as_returning())
+        .get_result(conn)
+        .expect("should always be able to insert a new queued message"))
+}
+
 /// Mark a message as sent.
 pub fn sent(conn: &mut SqliteConnection, message: &QueuedMessage) {
     let now = now_as_useconds();

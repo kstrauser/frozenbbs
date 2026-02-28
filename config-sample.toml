@@ -170,6 +170,13 @@ pattern = "invite\\s+unblock"
 available = "always"
 func = "invite::unblock"
 
+[[menus.Invite.commands]]
+arg = "INVITE !node"
+help = "Send an invitation to a node"
+pattern = "invite\\s+(!\\S+)"
+available = "always"
+func = "invite::send"
+
 [menus.Local]
 help_suffix = "L"
 

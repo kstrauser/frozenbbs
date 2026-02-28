@@ -81,6 +81,43 @@ pub fn accept(conn: &mut SqliteConnection, invitation: &Invitation) -> QueryResu
         .get_result(conn)
 }
 
+/// Get the most recent invitation sent by an account (any status, including expired).
+/// Used for rate limiting.
+pub fn get_most_recent_for_sender(
+    conn: &mut SqliteConnection,
+    sender_account_id: i32,
+) -> Option<Invitation> {
+    dsl::invitations
+        .select(Invitation::as_select())
+        .filter(dsl::sender_account_id.eq(sender_account_id))
+        .order(dsl::created_at_us.desc())
+        .first(conn)
+        .ok()
+}
+
+/// Create a new invitation with a specific timestamp (for testing rate limits and expiry).
+pub fn create_with_timestamp(
+    conn: &mut SqliteConnection,
+    sender_account_id: i32,
+    invitee_node_id: i32,
+    password: &str,
+    created_at_us: i64,
+) -> Result<Invitation> {
+    let new_invitation = NewInvitation {
+        sender_account_id,
+        invitee_node_id,
+        password,
+        created_at_us: &created_at_us,
+    };
+    new_invitation.validate()?;
+
+    Ok(diesel::insert_into(table)
+        .values(&new_invitation)
+        .returning(Invitation::as_returning())
+        .get_result(conn)
+        .expect("should always be able to insert a new invitation"))
+}
+
 /// Mark an invitation as denied.
 pub fn deny(conn: &mut SqliteConnection, invitation: &Invitation) -> QueryResult<Invitation> {
     let now = now_as_useconds();
