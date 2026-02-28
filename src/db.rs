@@ -1,5 +1,6 @@
 pub mod board_states;
 pub mod boards;
+pub mod invitations;
 pub mod posts;
 pub mod queued_messages;
 pub mod users;
@@ -86,6 +87,7 @@ pub(crate) fn test_connection() -> SqliteConnection {
             created_at_us BIGINT NOT NULL,
             last_acted_at_us BIGINT,
             in_board INTEGER,
+            invite_allowed BOOL NOT NULL DEFAULT FALSE,
             FOREIGN KEY (in_board) REFERENCES boards (id)
         );
         CREATE TABLE nodes (
@@ -125,6 +127,17 @@ pub(crate) fn test_connection() -> SqliteConnection {
             sent_at_us BIGINT,
             FOREIGN KEY (sender_account_id) REFERENCES accounts (id),
             FOREIGN KEY (recipient_account_id) REFERENCES accounts (id)
+        );
+        CREATE TABLE invitations (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            sender_account_id INTEGER NOT NULL,
+            invitee_node_id INTEGER NOT NULL,
+            password TEXT NOT NULL,
+            created_at_us BIGINT NOT NULL,
+            accepted_at_us BIGINT,
+            denied_at_us BIGINT,
+            FOREIGN KEY (sender_account_id) REFERENCES accounts (id),
+            FOREIGN KEY (invitee_node_id) REFERENCES nodes (id)
         );
         "#,
     )

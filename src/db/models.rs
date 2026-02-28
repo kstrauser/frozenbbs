@@ -1,5 +1,5 @@
 use super::formatted_useconds;
-use super::schema::{accounts, board_states, boards, nodes, posts};
+use super::schema::{accounts, board_states, boards, invitations, nodes, posts};
 use crate::hex_id_to_num;
 use diesel::prelude::*;
 use regex::Regex;
@@ -92,6 +92,7 @@ pub struct Account {
     pub created_at_us: i64,
     pub last_acted_at_us: Option<i64>,
     pub in_board: Option<i32>,
+    pub invite_allowed: bool,
 }
 
 impl Account {
@@ -116,6 +117,7 @@ pub struct AccountNew<'a> {
     pub created_at_us: &'a i64,
     #[validate(range(min = EARLY_2024, max=EARLY_2200))]
     pub last_acted_at_us: Option<&'a i64>,
+    pub invite_allowed: bool,
 }
 
 #[derive(AsChangeset, Validate)]
@@ -127,6 +129,7 @@ pub struct AccountUpdate<'a> {
     pub last_acted_at_us: Option<&'a i64>,
     #[validate(length(min = 0))]
     pub bio: Option<String>,
+    pub invite_allowed: Option<bool>,
 }
 
 /// A node represents a Meshtastic radio device.
@@ -301,6 +304,39 @@ pub struct QueuedMessageNew<'a> {
     pub created_at_us: &'a i64,
 }
 
+/// An invitation for a node to join a sender's account.
+#[derive(Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = crate::db::schema::invitations)]
+#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+pub struct Invitation {
+    pub id: i32,
+    pub sender_account_id: i32,
+    pub invitee_node_id: i32,
+    pub password: String,
+    pub created_at_us: i64,
+    pub accepted_at_us: Option<i64>,
+    pub denied_at_us: Option<i64>,
+}
+
+impl Invitation {
+    pub fn created_at(&self) -> String {
+        formatted_useconds(self.created_at_us)
+    }
+}
+
+#[derive(Insertable, Validate)]
+#[diesel(table_name = invitations)]
+pub struct NewInvitation<'a> {
+    #[validate(range(min = 1))]
+    pub sender_account_id: i32,
+    #[validate(range(min = 1))]
+    pub invitee_node_id: i32,
+    #[validate(length(min = 1))]
+    pub password: &'a str,
+    #[validate(range(min = EARLY_2024, max=EARLY_2200))]
+    pub created_at_us: &'a i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -314,6 +350,7 @@ mod tests {
             created_at_us: 1_710_000_000_000_000,
             last_acted_at_us: Some(1_710_000_001_000_000),
             in_board: Some(1),
+            invite_allowed: false,
         }
     }
 

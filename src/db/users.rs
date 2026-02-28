@@ -88,6 +88,7 @@ pub fn observe(
                     username: None,
                     created_at_us: &timestamp,
                     last_acted_at_us: None,
+                    invite_allowed: false,
                 };
                 new_account.validate().expect("new account should be valid");
 
@@ -137,6 +138,7 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
         username: None,
         last_acted_at_us: Some(&now),
         bio: None,
+        invite_allowed: None,
     };
     account_update.validate()?;
 
@@ -167,6 +169,7 @@ pub fn record(conn: &mut SqliteConnection, node_id: &str) -> Result<(User, bool)
                     username: None,
                     created_at_us: &now,
                     last_acted_at_us: Some(&now),
+                    invite_allowed: false,
                 };
                 new_account.validate().expect("new account should be valid");
 
@@ -378,6 +381,7 @@ pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> Result
         username: None,
         last_acted_at_us: None,
         bio: Some(bio.to_string()),
+        invite_allowed: None,
     };
     account_update.validate()?;
 

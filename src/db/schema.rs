@@ -9,6 +9,7 @@ diesel::table! {
         created_at_us -> BigInt,
         last_acted_at_us -> Nullable<BigInt>,
         in_board -> Nullable<Integer>,
+        invite_allowed -> Bool,
     }
 }
 
@@ -27,6 +28,18 @@ diesel::table! {
         name -> Text,
         description -> Text,
         created_at_us -> BigInt,
+    }
+}
+
+diesel::table! {
+    invitations (id) {
+        id -> Integer,
+        sender_account_id -> Integer,
+        invitee_node_id -> Integer,
+        password -> Text,
+        created_at_us -> BigInt,
+        accepted_at_us -> Nullable<BigInt>,
+        denied_at_us -> Nullable<BigInt>,
     }
 }
 
@@ -66,6 +79,8 @@ diesel::table! {
 diesel::joinable!(accounts -> boards (in_board));
 diesel::joinable!(board_states -> accounts (account_id));
 diesel::joinable!(board_states -> boards (board_id));
+diesel::joinable!(invitations -> accounts (sender_account_id));
+diesel::joinable!(invitations -> nodes (invitee_node_id));
 diesel::joinable!(nodes -> accounts (account_id));
 diesel::joinable!(posts -> accounts (account_id));
 diesel::joinable!(posts -> boards (board_id));
@@ -74,6 +89,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     accounts,
     board_states,
     boards,
+    invitations,
     nodes,
     posts,
     queued_messages,

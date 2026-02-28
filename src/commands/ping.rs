@@ -60,6 +60,7 @@ mod tests {
                 created_at_us: 0,
                 last_acted_at_us: None,
                 in_board: None,
+                invite_allowed: false,
             },
             node: Node {
                 id: 1,
