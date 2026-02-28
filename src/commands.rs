@@ -4,6 +4,7 @@ use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 mod board;
 mod dm;
+pub mod invite;
 mod ping;
 mod state;
 mod sysop;
@@ -205,6 +206,8 @@ pub fn command_structure(cfg: &BBSConfig) -> Menus {
                     "user::name_write" => user::name_write,
                     "user::name_clear" => user::name_clear,
                     "user::seen" => user::seen,
+                    "invite::block" => invite::block,
+                    "invite::unblock" => invite::unblock,
                     "weather::current" => weather::current,
                     _ => panic!("Unknown command function: {}", command.func),
                 },

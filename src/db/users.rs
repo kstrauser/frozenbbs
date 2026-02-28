@@ -394,6 +394,25 @@ pub fn update_bio(conn: &mut SqliteConnection, user: &User, bio: &str) -> Result
     Ok(User { account, node: user.node.clone() })
 }
 
+/// Update the user's invite_allowed setting.
+pub fn update_invite_allowed(conn: &mut SqliteConnection, user: &User, invite_allowed: bool) -> Result<User> {
+    let account_update = AccountUpdate {
+        username: None,
+        last_acted_at_us: None,
+        bio: None,
+        invite_allowed: Some(invite_allowed),
+    };
+    account_update.validate()?;
+
+    let account: Account = diesel::update(&user.account)
+        .set(accounts_dsl::invite_allowed.eq(invite_allowed))
+        .returning(Account::as_returning())
+        .get_result(conn)
+        .expect("we must be able to update accounts");
+
+    Ok(User { account, node: user.node.clone() })
+}
+
 /// Update the user's username
 pub fn update_username(conn: &mut SqliteConnection, user: &User, username: Option<&str>) -> Result<User> {
     let account: Account = diesel::update(&user.account)

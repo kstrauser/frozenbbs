@@ -153,6 +153,23 @@ pattern = "ba"
 available = "in_board"
 func = "board::author"
 
+[menus.Invite]
+help_suffix = "I"
+
+[[menus.Invite.commands]]
+arg = "INVITE BLOCK"
+help = "Block invitations to your account"
+pattern = "invite\\s+block"
+available = "always"
+func = "invite::block"
+
+[[menus.Invite.commands]]
+arg = "INVITE UNBLOCK"
+help = "Allow invitations to your account"
+pattern = "invite\\s+unblock"
+available = "always"
+func = "invite::unblock"
+
 [menus.Local]
 help_suffix = "L"
 
