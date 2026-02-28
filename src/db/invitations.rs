@@ -72,6 +72,22 @@ pub fn get_pending_for_invitee(
         .expect("should always be able to query invitations")
 }
 
+/// Check if any pending (non-accepted, non-denied) invitation exists for an invitee,
+/// regardless of expiry. Used to distinguish expired invitations from non-existent ones.
+pub fn get_any_pending_for_invitee(
+    conn: &mut SqliteConnection,
+    invitee_node_id: i32,
+) -> Vec<Invitation> {
+    dsl::invitations
+        .select(Invitation::as_select())
+        .filter(dsl::invitee_node_id.eq(invitee_node_id))
+        .filter(dsl::accepted_at_us.is_null())
+        .filter(dsl::denied_at_us.is_null())
+        .order(dsl::created_at_us.desc())
+        .load(conn)
+        .expect("should always be able to query invitations")
+}
+
 /// Mark an invitation as accepted.
 pub fn accept(conn: &mut SqliteConnection, invitation: &Invitation) -> QueryResult<Invitation> {
     let now = now_as_useconds();

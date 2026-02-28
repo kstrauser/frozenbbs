@@ -111,7 +111,12 @@ pub fn accept(
     // (1) Look up the calling node's pending inbound invitation (non-expired)
     let pending = invitations::get_pending_for_invitee(conn, user.node.id);
     let Some(invitation) = pending.first() else {
-        return NO_PENDING_ACCEPT.into();
+        // Check if there's an expired (but not accepted/denied) invitation
+        let any_pending = invitations::get_any_pending_for_invitee(conn, user.node.id);
+        if any_pending.is_empty() {
+            return NO_PENDING_ACCEPT.into();
+        }
+        return INVITATION_EXPIRED.into();
     };
 
     // (5) Check if invitation is expired (redundant with get_pending_for_invitee filtering,
@@ -1427,8 +1432,8 @@ mod tests {
             &mut target,
             vec!["invite accept", "testpassword"],
         );
-        // Expired invitations are filtered out by get_pending_for_invitee
-        assert_eq!(get_reply_text(&replies), NO_PENDING_ACCEPT);
+        // Expired invitations now return a specific expiry message
+        assert_eq!(get_reply_text(&replies), INVITATION_EXPIRED);
     }
 
     #[test]
@@ -1444,6 +1449,51 @@ mod tests {
             vec!["invite accept", "somepassword"],
         );
         assert_eq!(get_reply_text(&replies), NO_PENDING_ACCEPT);
+    }
+
+    #[test]
+    fn test_accept_expired_returns_expiry_not_generic_message() {
+        // Verify that expired invitations return a distinct message from "no invitation exists"
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let sender = create_test_user(&mut conn, "!dd000041", false);
+        let mut target = create_test_user(&mut conn, "!dd000042", true);
+        let mut no_invite_user = create_test_user(&mut conn, "!dd000043", false);
+
+        // Create an expired invitation for target
+        let old_time = now_as_useconds() - EXPIRY_US - 1_000_000;
+        invitations::create_with_timestamp(
+            &mut conn,
+            sender.account_id(),
+            target.node.id,
+            "expiredpass1",
+            old_time,
+        )
+        .expect("should create invitation");
+
+        // Accepting expired invitation returns expiry-specific message
+        let expired_reply = accept(
+            &mut conn,
+            &cfg,
+            &mut target,
+            vec!["invite accept", "expiredpass1"],
+        );
+        assert_eq!(get_reply_text(&expired_reply), INVITATION_EXPIRED);
+
+        // A user with no invitation at all gets the generic message
+        let no_invite_reply = accept(
+            &mut conn,
+            &cfg,
+            &mut no_invite_user,
+            vec!["invite accept", "somepassword"],
+        );
+        assert_eq!(get_reply_text(&no_invite_reply), NO_PENDING_ACCEPT);
+
+        // Verify the two messages are different
+        assert_ne!(
+            INVITATION_EXPIRED, NO_PENDING_ACCEPT,
+            "Expired and no-invitation messages must be distinct"
+        );
     }
 
     #[test]
