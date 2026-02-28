@@ -331,31 +331,36 @@ pub fn send(
         }
     }
 
-    // All checks passed — generate password and create invitation
+    // All checks passed — generate password and create invitation + queue DM atomically
     let password = generate_password();
-    let invitation = invitations::create(conn, user.account_id(), target_user.node.id, &password)
-        .expect("should be able to create invitation");
 
-    // Build DM notification for the target (no password!)
-    let sender_nodes = users::get_nodes_for_account(conn, user.account_id());
-    let node_list: Vec<String> = sender_nodes.iter().map(|n| n.to_string()).collect();
-    let dm_body = format!(
-        "You have received an invitation to join account #{} (nodes: {}). Use 'invite accept <password>' to accept or 'invite deny' to reject. Use 'invite pending' to see details.",
-        user.account_id(),
-        node_list.join(", ")
-    );
+    conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        invitations::create(conn, user.account_id(), target_user.node.id, &password)
+            .expect("should be able to create invitation");
 
-    // Queue the DM to the target's account
-    queued_messages::queue_by_account_ids(
-        conn,
-        user.account_id(),
-        target_user.account_id(),
-        &dm_body,
-    )
-    .expect("should be able to queue invitation notification");
+        // Build DM notification for the target (no password!)
+        let sender_nodes = users::get_nodes_for_account(conn, user.account_id());
+        let node_list: Vec<String> = sender_nodes.iter().map(|n| n.to_string()).collect();
+        let dm_body = format!(
+            "You have received an invitation to join account #{} (nodes: {}). Use 'invite accept <password>' to accept or 'invite deny' to reject. Use 'invite pending' to see details.",
+            user.account_id(),
+            node_list.join(", ")
+        );
+
+        // Queue the DM to the target's account
+        queued_messages::queue_by_account_ids(
+            conn,
+            user.account_id(),
+            target_user.account_id(),
+            &dm_body,
+        )
+        .expect("should be able to queue invitation notification");
+
+        Ok(())
+    })
+    .expect("send invitation transaction should succeed");
 
     // Send password back to the sender
-    let _ = invitation; // invitation record created, password stored in DB
     format!(
         "Invitation sent to {}. Password: {}",
         target_node_id, password
@@ -1846,6 +1851,37 @@ mod tests {
             display.contains(&format!("#{}", ghost_account_id)),
             "Ghost display should contain account ID, got: {}",
             display
+        );
+    }
+
+    #[test]
+    fn test_ghost_account_node_id_numeric_returns_none() {
+        let mut conn = db::test_connection();
+
+        // Create a user who will become a ghost
+        let (ghost_user, _) = users::record(&mut conn, "!ee000020").expect("user");
+        let ghost_account_id = ghost_user.account_id();
+
+        // Create a board and post as this user
+        use crate::db::boards;
+        let board =
+            boards::add(&mut conn, "Ghost Numeric", "Testing node_id_numeric").expect("board");
+        let _post = crate::db::posts::add(&mut conn, ghost_account_id, board.id, "Ghost post")
+            .expect("post");
+
+        // Move the node away, making the account a ghost
+        let (other_user, _) = users::record(&mut conn, "!ee000021").expect("user2");
+        users::move_node_to_account(&mut conn, &ghost_user.node, other_user.account_id())
+            .expect("move");
+
+        // Read posts — the ghost account's placeholder node should have node_id_numeric() == None
+        let posts_in_board = crate::db::posts::in_board(&mut conn, board.id);
+        assert_eq!(posts_in_board.len(), 1);
+        let ghost_user_display = &posts_in_board[0].1;
+        assert_eq!(
+            ghost_user_display.node_id_numeric(),
+            None,
+            "Ghost placeholder node should return None from node_id_numeric()"
         );
     }
 

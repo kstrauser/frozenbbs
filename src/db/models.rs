@@ -154,8 +154,12 @@ impl fmt::Display for Node {
 }
 
 impl Node {
-    pub fn node_id_numeric(&self) -> u32 {
-        hex_id_to_num(&self.node_id).expect("node_ids in the database should always be valid")
+    /// Convert the node's hex ID to its numeric representation.
+    ///
+    /// Returns `None` for non-standard node_id formats (e.g., ghost account
+    /// placeholder nodes that use `"#{id}"` format instead of `"!xxxxxxxx"`).
+    pub fn node_id_numeric(&self) -> Option<u32> {
+        hex_id_to_num(&self.node_id)
     }
     pub fn created_at(&self) -> String {
         formatted_useconds(self.created_at_us)
@@ -212,7 +216,7 @@ impl fmt::Display for User {
 }
 
 impl User {
-    pub fn node_id_numeric(&self) -> u32 {
+    pub fn node_id_numeric(&self) -> Option<u32> {
         self.node.node_id_numeric()
     }
     pub fn created_at(&self) -> String {
@@ -410,7 +414,21 @@ mod tests {
     #[test]
     fn node_id_numeric_parses_hex_id() {
         let node = make_node(1, 1);
-        assert_eq!(node.node_id_numeric(), 0xabcd1234);
+        assert_eq!(node.node_id_numeric(), Some(0xabcd1234));
+    }
+
+    #[test]
+    fn node_id_numeric_returns_none_for_ghost_placeholder() {
+        let mut node = make_node(1, 1);
+        node.node_id = "#42".to_string();
+        assert_eq!(node.node_id_numeric(), None);
+    }
+
+    #[test]
+    fn node_id_numeric_returns_none_for_invalid_format() {
+        let mut node = make_node(1, 1);
+        node.node_id = "not_a_node_id".to_string();
+        assert_eq!(node.node_id_numeric(), None);
     }
 
     #[test]
@@ -454,7 +472,7 @@ mod tests {
     #[test]
     fn user_delegates_to_node_methods() {
         let user = make_user(None);
-        assert_eq!(user.node_id_numeric(), 0xabcd1234);
+        assert_eq!(user.node_id_numeric(), Some(0xabcd1234));
         assert_eq!(user.node_id(), "!abcd1234");
         assert_eq!(user.short_name(), "TEST");
         assert_eq!(user.long_name(), "Test Node");
