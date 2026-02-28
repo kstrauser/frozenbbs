@@ -378,6 +378,7 @@ pub fn help(
     out.push("  invite deny        - Deny a pending invitation".to_string());
     out.push("  invite accept pw [migrate] - Accept a pending invitation".to_string());
     out.push("  invite leave       - Leave your current multi-node account".to_string());
+    out.push("  invite remove !node - Remove a node from your account".to_string());
     out.push("  invite !node       - Send an invitation to a node".to_string());
     out.into()
 }
@@ -426,6 +427,75 @@ pub fn leave(
         "You have left account #{}. You are now on a new standalone account #{}.",
         old_account_id,
         user.account_id()
+    )
+    .into()
+}
+
+const REMOVE_SELF_ERROR: &str = "You cannot remove yourself. Use 'invite leave' instead.";
+const REMOVE_NOT_IN_ACCOUNT: &str = "That node is not in your account.";
+
+/// Remove another node from the shared account.
+///
+/// The removed node gets a new standalone account with default values.
+/// Posts, DMs, and board states stay with the original account.
+/// Pending invitations (both outbound and inbound) for the removed node are cleaned up.
+#[allow(clippy::needless_pass_by_value)]
+pub fn remove(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    args: Vec<&str>,
+) -> Replies {
+    let Some(target_node_id) = args.get(1) else {
+        return "Usage: invite remove !nodeid".into();
+    };
+
+    // Canonicalize the target node ID
+    let Some(target_node_id) = canonical_node_id(target_node_id) else {
+        return UNKNOWN_NODE.into();
+    };
+
+    // (1) Verify the target node exists
+    let Ok(target_user) = users::get(conn, &target_node_id) else {
+        return UNKNOWN_NODE.into();
+    };
+
+    // (2) Verify the target node is on the SAME account as the sender
+    if target_user.account_id() != user.account_id() {
+        return REMOVE_NOT_IN_ACCOUNT.into();
+    }
+
+    // (3) Verify the target is NOT the sender's own node
+    if target_user.node.id == user.node.id {
+        return REMOVE_SELF_ERROR.into();
+    }
+
+    let old_account_id = user.account_id();
+
+    // (4) In a transaction: create a new account, move the target node to it, clean up invitations
+    conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        // Create a new account with default values for the removed node
+        let new_account = users::create_standalone_account(conn);
+
+        // Move the target node to the new account
+        users::move_node_to_account(conn, &target_user.node, new_account.id)
+            .expect("should be able to move node to new account");
+
+        // (6) Clean up: delete any pending outbound invitations from the old account
+        // sent by the removed node's old account
+        invitations::delete_pending_for_sender(conn, old_account_id);
+
+        // Clean up: delete any pending inbound invitations for the removed node
+        invitations::delete_pending_for_invitee(conn, target_user.node.id);
+
+        Ok(())
+    })
+    .expect("remove transaction should succeed");
+
+    // (7) Return confirmation to the sender
+    format!(
+        "Node {} has been removed from account #{}.",
+        target_node_id, old_account_id
     )
     .into()
 }
@@ -2148,5 +2218,399 @@ mod tests {
         assert_eq!(user_b_final.account_id(), account_a);
         let nodes = users::get_nodes_for_account(&mut conn, account_a);
         assert_eq!(nodes.len(), 2);
+    }
+
+    // ========== Remove tests ==========
+
+    #[test]
+    fn test_remove_success() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000001", false);
+        let mut user_b = create_test_user(&mut conn, "!ac000002", true);
+
+        let account_a = user_a.account_id();
+
+        // Build a 2-node account: A invites B
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000002");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        // Verify both on same account
+        let user_b_reloaded = users::get(&mut conn, "!ac000002").expect("user_b");
+        assert_eq!(user_b_reloaded.account_id(), account_a);
+
+        // A removes B
+        let mut user_a = users::get(&mut conn, "!ac000001").expect("user_a");
+        let replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000002"],
+        );
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("has been removed from account"),
+            "Expected removal confirmation, got: {}",
+            text
+        );
+        assert!(
+            text.contains("!ac000002"),
+            "Should mention removed node, got: {}",
+            text
+        );
+
+        // Verify B is on a new account
+        let user_b_after = users::get(&mut conn, "!ac000002").expect("user_b");
+        assert_ne!(
+            user_b_after.account_id(),
+            account_a,
+            "removed node should be on a different account"
+        );
+
+        // Verify A is still on the original account
+        let user_a_after = users::get(&mut conn, "!ac000001").expect("user_a");
+        assert_eq!(user_a_after.account_id(), account_a);
+
+        // Original account should have 1 node remaining
+        let remaining_nodes = users::get_nodes_for_account(&mut conn, account_a);
+        assert_eq!(remaining_nodes.len(), 1);
+        assert_eq!(remaining_nodes[0].node_id, "!ac000001");
+    }
+
+    #[test]
+    fn test_remove_from_three_node_account() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000010", false);
+        let mut user_b = create_test_user(&mut conn, "!ac000011", true);
+        let mut user_c = create_test_user(&mut conn, "!ac000012", true);
+
+        let account_a = user_a.account_id();
+
+        // Build a 3-node account
+        let pw_b = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000011");
+        let _r = accept(&mut conn, &cfg, &mut user_b, vec!["invite accept", &pw_b]);
+        let pw_c = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000012");
+        let _r = accept(&mut conn, &cfg, &mut user_c, vec!["invite accept", &pw_c]);
+
+        // Verify 3 nodes on account
+        let nodes = users::get_nodes_for_account(&mut conn, account_a);
+        assert_eq!(nodes.len(), 3);
+
+        // A removes B
+        let mut user_a = users::get(&mut conn, "!ac000010").expect("user_a");
+        let replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000011"],
+        );
+        let text = get_reply_text(&replies);
+        assert!(text.contains("has been removed"), "got: {}", text);
+
+        // Verify B is on a new account
+        let user_b_after = users::get(&mut conn, "!ac000011").expect("user_b");
+        assert_ne!(user_b_after.account_id(), account_a);
+
+        // Verify A and C are still on the original account
+        let remaining = users::get_nodes_for_account(&mut conn, account_a);
+        assert_eq!(remaining.len(), 2);
+        let remaining_ids: Vec<&str> = remaining.iter().map(|n| n.node_id.as_str()).collect();
+        assert!(remaining_ids.contains(&"!ac000010"));
+        assert!(remaining_ids.contains(&"!ac000012"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_node() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ac000020", false);
+
+        let replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user,
+            vec!["invite remove", "!ff999999"],
+        );
+        assert_eq!(get_reply_text(&replies), UNKNOWN_NODE);
+    }
+
+    #[test]
+    fn test_remove_node_not_in_account() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000030", false);
+        let _user_b = create_test_user(&mut conn, "!ac000031", false);
+
+        // A tries to remove B, but B is on a different account
+        let replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000031"],
+        );
+        assert_eq!(get_reply_text(&replies), REMOVE_NOT_IN_ACCOUNT);
+    }
+
+    #[test]
+    fn test_remove_self_error() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ac000040", false);
+
+        let replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user,
+            vec!["invite remove", "!ac000040"],
+        );
+        let text = get_reply_text(&replies);
+        assert_eq!(text, REMOVE_SELF_ERROR);
+        assert!(
+            text.contains("leave"),
+            "Error should mention 'leave', got: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_remove_new_account_has_clean_defaults() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000050", false);
+        let mut user_b = create_test_user(&mut conn, "!ac000051", true);
+
+        // Build multi-node account
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000051");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        // A removes B
+        let mut user_a = users::get(&mut conn, "!ac000050").expect("user_a");
+        let _replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000051"],
+        );
+
+        // Verify B's new account has default values
+        let user_b_after = users::get(&mut conn, "!ac000051").expect("user_b");
+        assert!(
+            user_b_after.account.username.is_none(),
+            "new account should have no username"
+        );
+        assert!(
+            user_b_after.account.bio.is_none(),
+            "new account should have no bio"
+        );
+        assert!(
+            !user_b_after.account.jackass,
+            "new account should not be banned"
+        );
+        assert!(
+            user_b_after.account.in_board.is_none(),
+            "new account should not be in a board"
+        );
+        assert!(
+            !user_b_after.account.invite_allowed,
+            "new account should have invitations blocked"
+        );
+    }
+
+    #[test]
+    fn test_remove_posts_stay_with_original_account() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000060", false);
+        let mut user_b = create_test_user(&mut conn, "!ac000061", true);
+
+        // Build multi-node account
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000061");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        let shared_account_id = user_a.account_id();
+
+        // Create a board and post on the shared account
+        use crate::db::boards;
+        let board = boards::add(&mut conn, "Remove Test Board", "Testing remove")
+            .expect("should create board");
+        let _post = crate::db::posts::add(
+            &mut conn,
+            shared_account_id,
+            board.id,
+            "Shared account post",
+        )
+        .expect("should create post");
+
+        // A removes B
+        let mut user_a = users::get(&mut conn, "!ac000060").expect("user_a");
+        let _replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000061"],
+        );
+
+        // Verify posts still belong to the original account
+        let board_posts = crate::db::posts::in_board(&mut conn, board.id);
+        assert_eq!(board_posts.len(), 1);
+        assert_eq!(board_posts[0].0.account_id, shared_account_id);
+        assert_eq!(board_posts[0].0.body, "Shared account post");
+    }
+
+    #[test]
+    fn test_remove_cleans_up_outbound_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000070", false);
+        let mut user_b = create_test_user(&mut conn, "!ac000071", true);
+        let _user_c = create_test_user(&mut conn, "!ac000072", true);
+
+        // Build multi-node account: A invites B
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000071");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        let shared_account_id = user_a.account_id();
+
+        // The shared account sends an outbound invitation to C
+        let mut user_a = users::get(&mut conn, "!ac000070").expect("user_a");
+        let _pw_c = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000072");
+
+        // Verify outbound invitation exists
+        let pending_before = invitations::get_pending_for_sender(&mut conn, shared_account_id);
+        assert_eq!(pending_before.len(), 1);
+
+        // A removes B - should clean up the outbound invitation
+        let mut user_a = users::get(&mut conn, "!ac000070").expect("user_a");
+        let _replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000071"],
+        );
+
+        // The outbound invitation from the old account should be deleted
+        let pending_after = invitations::get_pending_for_sender(&mut conn, shared_account_id);
+        assert!(
+            pending_after.is_empty(),
+            "outbound invitation should be cleaned up after remove"
+        );
+    }
+
+    #[test]
+    fn test_remove_cleans_up_inbound_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ac000080", false);
+        let mut user_b = create_test_user(&mut conn, "!ac000081", true);
+        let user_d = create_test_user(&mut conn, "!ac000083", false);
+
+        // Build multi-node account: A invites B
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ac000081");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        // Now user_b is on A's account. Let's create an inbound invitation for B
+        // from some other user D
+        // First B needs to be unblocked on the new account
+        // Actually, since B is now part of A's account, the invite would target B's node specifically
+        // Let's set up: D sends invitation to B's node while B is still on A's account
+        // We need the new account to have invite_allowed. But B is on A's account...
+        // Let's manually create an inbound invitation for B's node from D
+        let user_b_reloaded = users::get(&mut conn, "!ac000081").expect("user_b");
+        invitations::create(
+            &mut conn,
+            user_d.account_id(),
+            user_b_reloaded.node.id,
+            "testpassxxx",
+        )
+        .expect("should create invitation");
+
+        // Verify inbound invitation exists for B
+        let pending_inbound =
+            invitations::get_pending_for_invitee(&mut conn, user_b_reloaded.node.id);
+        assert_eq!(pending_inbound.len(), 1);
+
+        // A removes B - should clean up the inbound invitation
+        let mut user_a = users::get(&mut conn, "!ac000080").expect("user_a");
+        let _replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite remove", "!ac000081"],
+        );
+
+        // The inbound invitation for B's node should be deleted
+        let pending_after =
+            invitations::get_pending_for_invitee(&mut conn, user_b_reloaded.node.id);
+        assert!(
+            pending_after.is_empty(),
+            "inbound invitation should be cleaned up after remove"
+        );
+    }
+
+    #[test]
+    fn test_remove_invalid_node_id() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ac000090", false);
+
+        let replies = remove(
+            &mut conn,
+            &cfg,
+            &mut user,
+            vec!["invite remove", "notanode"],
+        );
+        assert_eq!(get_reply_text(&replies), UNKNOWN_NODE);
+    }
+
+    #[test]
+    fn test_remove_no_args() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ac000100", false);
+
+        let replies = remove(&mut conn, &cfg, &mut user, vec!["invite remove"]);
+        let text = get_reply_text(&replies);
+        assert!(text.contains("Usage"), "Should show usage, got: {}", text);
+    }
+
+    #[test]
+    fn test_help_includes_remove() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ac000110", false);
+
+        let replies = help(&mut conn, &cfg, &mut user, vec!["invite"]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("remove"),
+            "Help should mention remove, got: {}",
+            text
+        );
     }
 }

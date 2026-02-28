@@ -213,6 +213,7 @@ pub fn command_structure(cfg: &BBSConfig) -> Menus {
                     "invite::accept" => invite::accept,
                     "invite::send" => invite::send,
                     "invite::leave" => invite::leave,
+                    "invite::remove" => invite::remove,
                     "invite::help" => invite::help,
                     "weather::current" => weather::current,
                     _ => panic!("Unknown command function: {}", command.func),

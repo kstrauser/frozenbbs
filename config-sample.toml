@@ -199,6 +199,13 @@ available = "always"
 func = "invite::leave"
 
 [[menus.Invite.commands]]
+arg = "INVITE REMOVE !node"
+help = "Remove a node from your account"
+pattern = "invite\\s+remove\\s+(!\\S+)"
+available = "always"
+func = "invite::remove"
+
+[[menus.Invite.commands]]
 arg = "INVITE !node"
 help = "Send an invitation to a node"
 pattern = "invite\\s+(!\\S+)"
