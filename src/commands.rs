@@ -4,7 +4,7 @@ use diesel::SqliteConnection;
 use regex::{Regex, RegexBuilder};
 mod board;
 mod dm;
-pub mod invite;
+mod invite;
 mod ping;
 mod state;
 mod sysop;
