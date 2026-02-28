@@ -208,6 +208,8 @@ pub fn command_structure(cfg: &BBSConfig) -> Menus {
                     "user::seen" => user::seen,
                     "invite::block" => invite::block,
                     "invite::unblock" => invite::unblock,
+                    "invite::deny" => invite::deny,
+                    "invite::pending" => invite::pending,
                     "invite::send" => invite::send,
                     "weather::current" => weather::current,
                     _ => panic!("Unknown command function: {}", command.func),

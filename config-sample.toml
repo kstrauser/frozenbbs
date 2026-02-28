@@ -171,6 +171,20 @@ available = "always"
 func = "invite::unblock"
 
 [[menus.Invite.commands]]
+arg = "INVITE DENY"
+help = "Deny a pending invitation"
+pattern = "invite\\s+deny"
+available = "always"
+func = "invite::deny"
+
+[[menus.Invite.commands]]
+arg = "INVITE PENDING"
+help = "Show pending invitations"
+pattern = "invite\\s+pending"
+available = "always"
+func = "invite::pending"
+
+[[menus.Invite.commands]]
 arg = "INVITE !node"
 help = "Send an invitation to a node"
 pattern = "invite\\s+(!\\S+)"

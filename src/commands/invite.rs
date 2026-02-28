@@ -1,5 +1,5 @@
 use super::Replies;
-use crate::db::{invitations, queued_messages, users, User};
+use crate::db::{invitations, now_as_useconds, queued_messages, users, User};
 use crate::{canonical_node_id, BBSConfig};
 use diesel::SqliteConnection;
 use rand::Rng;
@@ -15,6 +15,8 @@ const UNKNOWN_NODE: &str = "Unknown node.";
 const CANNOT_INVITE_SELF: &str = "You cannot invite your own account.";
 const SENDER_BANNED: &str = "Your account is not allowed to send invitations.";
 const INFLIGHT_INVITATION: &str = "You already have a pending outbound invitation.";
+const NO_PENDING_INVITATION: &str = "No pending invitation to deny.";
+const NO_PENDING_INVITATIONS: &str = "No pending invitations.";
 
 /// Generate a pronounceable, cryptographically random password of ~12 characters.
 ///
@@ -64,6 +66,84 @@ pub fn unblock(
     user.account = updated.account;
 
     "Invitations are now allowed.".into()
+}
+
+/// Deny a pending inbound invitation.
+#[allow(clippy::needless_pass_by_value)]
+pub fn deny(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Replies {
+    let pending = invitations::get_pending_for_invitee(conn, user.node.id);
+    let Some(invitation) = pending.first() else {
+        return NO_PENDING_INVITATION.into();
+    };
+
+    invitations::deny(conn, invitation).expect("should be able to deny invitation");
+    "Invitation denied.".into()
+}
+
+/// Format a duration in microseconds as a human-readable string.
+fn format_remaining(remaining_us: i64) -> String {
+    if remaining_us <= 0 {
+        return "expired".to_string();
+    }
+    let total_minutes = remaining_us / 60_000_000;
+    let hours = total_minutes / 60;
+    let minutes = total_minutes % 60;
+    if hours > 0 {
+        format!("{}h {}m remaining", hours, minutes)
+    } else {
+        format!("{}m remaining", minutes)
+    }
+}
+
+/// Show pending (non-expired) invitations for this user.
+#[allow(clippy::needless_pass_by_value)]
+pub fn pending(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Replies {
+    let now = now_as_useconds();
+    let outbound = invitations::get_pending_for_sender(conn, user.account_id());
+    let inbound = invitations::get_pending_for_invitee(conn, user.node.id);
+
+    if outbound.is_empty() && inbound.is_empty() {
+        return NO_PENDING_INVITATIONS.into();
+    }
+
+    let mut lines: Vec<String> = Vec::new();
+
+    for inv in &outbound {
+        let remaining_us = (inv.created_at_us + EXPIRY_US) - now;
+        let target_node = users::get_node_by_id(conn, inv.invitee_node_id)
+            .expect("invitation should reference a valid node");
+        lines.push(format!(
+            "Outbound: to {} ({})",
+            target_node.node_id,
+            format_remaining(remaining_us)
+        ));
+    }
+
+    for inv in &inbound {
+        let remaining_us = (inv.created_at_us + EXPIRY_US) - now;
+        let sender_user = users::get_by_account_id(conn, inv.sender_account_id)
+            .expect("invitation should reference a valid account");
+        let sender_nodes = users::get_nodes_for_account(conn, inv.sender_account_id);
+        let node_list: Vec<String> = sender_nodes.iter().map(|n| n.to_string()).collect();
+        lines.push(format!(
+            "Inbound: from {} (nodes: {}) ({})",
+            sender_user.display_name(),
+            node_list.join(", "),
+            format_remaining(remaining_us)
+        ));
+    }
+
+    lines.into()
 }
 
 /// Send an invitation to a target node.
@@ -822,5 +902,249 @@ mod tests {
             messages[0].body.contains("!aa000130"),
             "DM should contain sender's node ID"
         );
+    }
+
+    // ========== Deny tests ==========
+
+    #[test]
+    fn test_deny_success() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!bb000001", false);
+        let mut target = create_test_user(&mut conn, "!bb000002", true);
+
+        // Send an invitation
+        let replies = send(
+            &mut conn,
+            &cfg,
+            &mut sender,
+            vec!["invite !bb000002", "!bb000002"],
+        );
+        assert!(get_reply_text(&replies).starts_with("Invitation sent"));
+
+        // Deny the invitation from the target's perspective
+        let replies = deny(&mut conn, &cfg, &mut target, vec!["invite deny"]);
+        assert_eq!(get_reply_text(&replies), "Invitation denied.");
+
+        // Verify it's no longer pending
+        let pending_inbound = invitations::get_pending_for_invitee(&mut conn, target.node.id);
+        assert!(
+            pending_inbound.is_empty(),
+            "invitation should no longer be pending"
+        );
+
+        let pending_outbound = invitations::get_pending_for_sender(&mut conn, sender.account_id());
+        assert!(
+            pending_outbound.is_empty(),
+            "sender should have no pending invitations"
+        );
+    }
+
+    #[test]
+    fn test_deny_no_pending_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!bb000010", false);
+
+        let replies = deny(&mut conn, &cfg, &mut user, vec!["invite deny"]);
+        assert_eq!(get_reply_text(&replies), NO_PENDING_INVITATION);
+    }
+
+    // ========== Pending tests ==========
+
+    #[test]
+    fn test_pending_no_invitations() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!cc000001", false);
+
+        let replies = pending(&mut conn, &cfg, &mut user, vec!["invite pending"]);
+        assert_eq!(get_reply_text(&replies), NO_PENDING_INVITATIONS);
+    }
+
+    #[test]
+    fn test_pending_shows_outbound() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!cc000010", false);
+        let _target = create_test_user(&mut conn, "!cc000011", true);
+
+        // Send an invitation
+        let replies = send(
+            &mut conn,
+            &cfg,
+            &mut sender,
+            vec!["invite !cc000011", "!cc000011"],
+        );
+        assert!(get_reply_text(&replies).starts_with("Invitation sent"));
+
+        // Check pending from sender's perspective
+        let replies = pending(&mut conn, &cfg, &mut sender, vec!["invite pending"]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("Outbound"),
+            "Should show outbound invitation, got: {}",
+            text
+        );
+        assert!(
+            text.contains("!cc000011"),
+            "Should show target node ID, got: {}",
+            text
+        );
+        assert!(
+            text.contains("remaining"),
+            "Should show time remaining, got: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_pending_shows_inbound() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!cc000020", false);
+        let mut target = create_test_user(&mut conn, "!cc000021", true);
+
+        // Send an invitation
+        let replies = send(
+            &mut conn,
+            &cfg,
+            &mut sender,
+            vec!["invite !cc000021", "!cc000021"],
+        );
+        assert!(get_reply_text(&replies).starts_with("Invitation sent"));
+
+        // Check pending from target's perspective
+        let replies = pending(&mut conn, &cfg, &mut target, vec!["invite pending"]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("Inbound"),
+            "Should show inbound invitation, got: {}",
+            text
+        );
+        assert!(
+            text.contains(&format!("#{}", sender.account_id())),
+            "Should show sender account ID, got: {}",
+            text
+        );
+        assert!(
+            text.contains("!cc000020"),
+            "Should show sender's node info, got: {}",
+            text
+        );
+        assert!(
+            text.contains("remaining"),
+            "Should show time remaining, got: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_pending_shows_both_outbound_and_inbound() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!cc000030", true);
+        let mut user_b = create_test_user(&mut conn, "!cc000031", true);
+
+        // User B sends invitation to user A (A has an inbound)
+        let replies = send(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite !cc000030", "!cc000030"],
+        );
+        assert!(get_reply_text(&replies).starts_with("Invitation sent"));
+
+        // User A sends invitation to some other user (A has an outbound)
+        let _user_c = create_test_user(&mut conn, "!cc000032", true);
+        let replies = send(
+            &mut conn,
+            &cfg,
+            &mut user_a,
+            vec!["invite !cc000032", "!cc000032"],
+        );
+        assert!(get_reply_text(&replies).starts_with("Invitation sent"));
+
+        // Check pending from user A's perspective - should show both
+        let replies = pending(&mut conn, &cfg, &mut user_a, vec!["invite pending"]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("Outbound"),
+            "Should show outbound, got: {}",
+            text
+        );
+        assert!(
+            text.contains("Inbound"),
+            "Should show inbound, got: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_pending_excludes_expired() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut sender = create_test_user(&mut conn, "!cc000040", false);
+        let target = create_test_user(&mut conn, "!cc000041", true);
+
+        // Create an expired invitation (>24 hours old)
+        let old_time = crate::db::now_as_useconds() - EXPIRY_US - 1_000_000;
+        invitations::create_with_timestamp(
+            &mut conn,
+            sender.account_id(),
+            target.node.id,
+            "oldpasswordx",
+            old_time,
+        )
+        .expect("should create invitation");
+
+        // Sender should see no pending invitations
+        let replies = pending(&mut conn, &cfg, &mut sender, vec!["invite pending"]);
+        assert_eq!(get_reply_text(&replies), NO_PENDING_INVITATIONS);
+    }
+
+    #[test]
+    fn test_pending_expired_not_shown_for_invitee() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let sender = create_test_user(&mut conn, "!cc000050", false);
+        let mut target = create_test_user(&mut conn, "!cc000051", true);
+
+        // Create an expired invitation (>24 hours old)
+        let old_time = crate::db::now_as_useconds() - EXPIRY_US - 1_000_000;
+        invitations::create_with_timestamp(
+            &mut conn,
+            sender.account_id(),
+            target.node.id,
+            "oldpasswordx",
+            old_time,
+        )
+        .expect("should create invitation");
+
+        // Target should see no pending invitations
+        let replies = pending(&mut conn, &cfg, &mut target, vec!["invite pending"]);
+        assert_eq!(get_reply_text(&replies), NO_PENDING_INVITATIONS);
+    }
+
+    // ========== Format remaining tests ==========
+
+    #[test]
+    fn test_format_remaining_hours_and_minutes() {
+        // 23 hours and 15 minutes in microseconds
+        let us = (23 * 3600 + 15 * 60) * 1_000_000;
+        assert_eq!(format_remaining(us), "23h 15m remaining");
+    }
+
+    #[test]
+    fn test_format_remaining_minutes_only() {
+        // 45 minutes in microseconds
+        let us = 45 * 60 * 1_000_000;
+        assert_eq!(format_remaining(us), "45m remaining");
+    }
+
+    #[test]
+    fn test_format_remaining_expired() {
+        assert_eq!(format_remaining(0), "expired");
+        assert_eq!(format_remaining(-1), "expired");
     }
 }

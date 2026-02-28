@@ -257,6 +257,14 @@ pub fn get_nodes_for_account(conn: &mut SqliteConnection, account_id: i32) -> Ve
         .expect("should always be able to load nodes for an account")
 }
 
+/// Get a node by its database ID.
+pub fn get_node_by_id(conn: &mut SqliteConnection, node_db_id: i32) -> QueryResult<Node> {
+    nodes_dsl::nodes
+        .select(Node::as_select())
+        .filter(nodes_dsl::id.eq(node_db_id))
+        .first(conn)
+}
+
 /// Get just the account by its id (without a node).
 pub fn get_account(conn: &mut SqliteConnection, account_id: i32) -> QueryResult<Account> {
     get_account_by_id(conn, account_id)
