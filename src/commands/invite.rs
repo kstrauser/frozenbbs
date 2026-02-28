@@ -22,6 +22,7 @@ const WRONG_PASSWORD: &str = "Incorrect password.";
 const NO_PENDING_ACCEPT: &str = "No pending invitation to accept.";
 const INVITATION_EXPIRED: &str = "This invitation has expired.";
 const ACCEPT_BANNED: &str = "Your account is not allowed to accept invitations.";
+const LEAVE_ONLY_NODE: &str = "You are the only node on this account.";
 
 /// Generate a pronounceable, cryptographically random password of ~12 characters.
 ///
@@ -376,8 +377,57 @@ pub fn help(
     out.push("  invite pending     - Show pending invitations".to_string());
     out.push("  invite deny        - Deny a pending invitation".to_string());
     out.push("  invite accept pw [migrate] - Accept a pending invitation".to_string());
+    out.push("  invite leave       - Leave your current multi-node account".to_string());
     out.push("  invite !node       - Send an invitation to a node".to_string());
     out.into()
+}
+
+/// Leave the current multi-node account.
+///
+/// Creates a new standalone account for the departing node.
+/// Posts, DMs, and board states stay with the original account.
+#[allow(clippy::needless_pass_by_value)]
+pub fn leave(
+    conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    user: &mut User,
+    _args: Vec<&str>,
+) -> Replies {
+    // (1) Check the account has 2+ nodes
+    let nodes = users::get_nodes_for_account(conn, user.account_id());
+    if nodes.len() < 2 {
+        return LEAVE_ONLY_NODE.into();
+    }
+
+    let old_account_id = user.account_id();
+
+    // (2) In a transaction: create new account, move node, clean up invitations
+    let new_account = conn
+        .transaction::<_, diesel::result::Error, _>(|conn| {
+            // Create a new account with default values
+            let account = users::create_standalone_account(conn);
+
+            // Move the node to the new account
+            users::move_node_to_account(conn, &user.node, account.id)
+                .expect("should be able to move node to new account");
+
+            // Clean up: delete any pending outbound invitations from the old account
+            // that were sent by this departing node's old account
+            invitations::delete_pending_for_sender(conn, old_account_id);
+
+            Ok(account)
+        })
+        .expect("leave transaction should succeed");
+
+    // Update the user's in-memory state to reflect the new account
+    user.account = new_account;
+
+    format!(
+        "You have left account #{}. You are now on a new standalone account #{}.",
+        old_account_id,
+        user.account_id()
+    )
+    .into()
 }
 
 #[cfg(test)]
@@ -1808,5 +1858,295 @@ mod tests {
             "Help should include header, got: {}",
             text
         );
+    }
+
+    #[test]
+    fn test_help_includes_leave() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ff000003", false);
+
+        let replies = help(&mut conn, &cfg, &mut user, vec!["invite"]);
+        let text = get_reply_text(&replies);
+
+        assert!(
+            text.contains("leave"),
+            "Help should mention leave, got: {}",
+            text
+        );
+    }
+
+    // ========== Leave tests ==========
+
+    #[test]
+    fn test_leave_from_two_node_account() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ab000001", false);
+        let mut user_b = create_test_user(&mut conn, "!ab000002", true);
+
+        let sender_account_id = user_a.account_id();
+
+        // Create a multi-node account via invitation
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000002");
+        let _replies = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        // Both on the same account now
+        let user_b_reloaded = users::get(&mut conn, "!ab000002").expect("should find user_b");
+        assert_eq!(user_b_reloaded.account_id(), sender_account_id);
+
+        // user_b leaves
+        let mut user_b = user_b_reloaded;
+        let replies = leave(&mut conn, &cfg, &mut user_b, vec!["invite leave"]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("You have left account"),
+            "Expected leave confirmation, got: {}",
+            text
+        );
+        assert!(
+            text.contains(&format!("#{}", sender_account_id)),
+            "Should mention old account, got: {}",
+            text
+        );
+
+        // Verify user_b is on a new account
+        let user_b_reloaded = users::get(&mut conn, "!ab000002").expect("should find user_b");
+        assert_ne!(
+            user_b_reloaded.account_id(),
+            sender_account_id,
+            "user_b should be on a different account now"
+        );
+
+        // Verify user_a is still on the original account
+        let user_a_reloaded = users::get(&mut conn, "!ab000001").expect("should find user_a");
+        assert_eq!(user_a_reloaded.account_id(), sender_account_id);
+
+        // Original account should now have only 1 node
+        let remaining_nodes = users::get_nodes_for_account(&mut conn, sender_account_id);
+        assert_eq!(remaining_nodes.len(), 1);
+        assert_eq!(remaining_nodes[0].node_id, "!ab000001");
+    }
+
+    #[test]
+    fn test_leave_from_three_node_account() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ab000010", false);
+        let mut user_b = create_test_user(&mut conn, "!ab000011", true);
+        let mut user_c = create_test_user(&mut conn, "!ab000012", true);
+
+        let account_id = user_a.account_id();
+
+        // Build a 3-node account
+        let pw_b = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000011");
+        let _r = accept(&mut conn, &cfg, &mut user_b, vec!["invite accept", &pw_b]);
+        let pw_c = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000012");
+        let _r = accept(&mut conn, &cfg, &mut user_c, vec!["invite accept", &pw_c]);
+
+        // Verify 3 nodes on account
+        let nodes = users::get_nodes_for_account(&mut conn, account_id);
+        assert_eq!(nodes.len(), 3);
+
+        // user_b leaves
+        let mut user_b = users::get(&mut conn, "!ab000011").expect("user_b");
+        let replies = leave(&mut conn, &cfg, &mut user_b, vec!["invite leave"]);
+        let text = get_reply_text(&replies);
+        assert!(text.contains("You have left account"), "got: {}", text);
+
+        // Verify the original account still has 2 nodes
+        let remaining_nodes = users::get_nodes_for_account(&mut conn, account_id);
+        assert_eq!(remaining_nodes.len(), 2);
+
+        // user_b is on a new account
+        let user_b_reloaded = users::get(&mut conn, "!ab000011").expect("user_b");
+        assert_ne!(user_b_reloaded.account_id(), account_id);
+    }
+
+    #[test]
+    fn test_leave_from_single_node_account_error() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ab000020", false);
+
+        let replies = leave(&mut conn, &cfg, &mut user, vec!["invite leave"]);
+        assert_eq!(get_reply_text(&replies), LEAVE_ONLY_NODE);
+    }
+
+    #[test]
+    fn test_leave_new_account_defaults() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ab000030", false);
+        let mut user_b = create_test_user(&mut conn, "!ab000031", true);
+
+        // Build multi-node account
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000031");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        // user_b leaves
+        let mut user_b = users::get(&mut conn, "!ab000031").expect("user_b");
+        let _replies = leave(&mut conn, &cfg, &mut user_b, vec!["invite leave"]);
+
+        // Verify new account has default values
+        let user_b_reloaded = users::get(&mut conn, "!ab000031").expect("user_b");
+        assert!(
+            user_b_reloaded.account.username.is_none(),
+            "new account should have no username"
+        );
+        assert!(
+            user_b_reloaded.account.bio.is_none(),
+            "new account should have no bio"
+        );
+        assert!(
+            !user_b_reloaded.account.jackass,
+            "new account should not be banned"
+        );
+        assert!(
+            user_b_reloaded.account.in_board.is_none(),
+            "new account should not be in a board"
+        );
+        assert!(
+            !user_b_reloaded.account.invite_allowed,
+            "new account should have invitations blocked"
+        );
+    }
+
+    #[test]
+    fn test_leave_old_posts_unchanged() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ab000040", false);
+        let mut user_b = create_test_user(&mut conn, "!ab000041", true);
+
+        // Build multi-node account
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000041");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        let shared_account_id = user_a.account_id();
+
+        // Create a board and post on the shared account
+        use crate::db::boards;
+        let board = boards::add(&mut conn, "Leave Test Board", "Testing leave")
+            .expect("should create board");
+        let _post = crate::db::posts::add(
+            &mut conn,
+            shared_account_id,
+            board.id,
+            "Shared account post",
+        )
+        .expect("should create post");
+
+        // user_b leaves
+        let mut user_b = users::get(&mut conn, "!ab000041").expect("user_b");
+        let _replies = leave(&mut conn, &cfg, &mut user_b, vec!["invite leave"]);
+
+        // Verify posts still belong to the original account
+        let board_posts = crate::db::posts::in_board(&mut conn, board.id);
+        assert_eq!(board_posts.len(), 1);
+        assert_eq!(board_posts[0].0.account_id, shared_account_id);
+        assert_eq!(board_posts[0].0.body, "Shared account post");
+    }
+
+    #[test]
+    fn test_leave_cleans_up_outbound_invitation() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ab000050", false);
+        let mut user_b = create_test_user(&mut conn, "!ab000051", true);
+        let _user_c = create_test_user(&mut conn, "!ab000052", true);
+
+        // Build multi-node account: A invites B
+        let password = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000051");
+        let _r = accept(
+            &mut conn,
+            &cfg,
+            &mut user_b,
+            vec!["invite accept", &password],
+        );
+
+        let shared_account_id = user_a.account_id();
+
+        // Now the shared account sends an outbound invitation to C
+        let mut user_a = users::get(&mut conn, "!ab000050").expect("user_a");
+        let _pw_c = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000052");
+
+        // Verify outbound invitation exists
+        let pending_before = invitations::get_pending_for_sender(&mut conn, shared_account_id);
+        assert_eq!(pending_before.len(), 1);
+
+        // user_b leaves - this should clean up the outbound invitation
+        let mut user_b = users::get(&mut conn, "!ab000051").expect("user_b");
+        let _replies = leave(&mut conn, &cfg, &mut user_b, vec!["invite leave"]);
+
+        // The outbound invitation from the old account should be deleted
+        let pending_after = invitations::get_pending_for_sender(&mut conn, shared_account_id);
+        assert!(
+            pending_after.is_empty(),
+            "outbound invitation should be cleaned up after leave"
+        );
+    }
+
+    #[test]
+    fn test_leave_and_rejoin_cycle() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user_a = create_test_user(&mut conn, "!ab000060", false);
+        let mut user_b = create_test_user(&mut conn, "!ab000061", true);
+
+        let account_a = user_a.account_id();
+
+        // Step 1: A invites B, B accepts
+        let pw1 = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000061");
+        let _r = accept(&mut conn, &cfg, &mut user_b, vec!["invite accept", &pw1]);
+
+        // Both on same account
+        let user_b = users::get(&mut conn, "!ab000061").expect("user_b");
+        assert_eq!(user_b.account_id(), account_a);
+
+        // Step 2: B leaves
+        let mut user_b = user_b;
+        let _replies = leave(&mut conn, &cfg, &mut user_b, vec!["invite leave"]);
+        let user_b = users::get(&mut conn, "!ab000061").expect("user_b");
+        assert_ne!(user_b.account_id(), account_a);
+
+        // Step 3: B unblocks invitations (new account defaults to blocked)
+        let mut user_b = user_b;
+        let _r = unblock(&mut conn, &cfg, &mut user_b, vec!["invite unblock"]);
+
+        // Step 4: A re-invites B
+        let mut user_a = users::get(&mut conn, "!ab000060").expect("user_a");
+        let pw2 = send_invitation(&mut conn, &cfg, &mut user_a, "!ab000061");
+
+        // Step 5: B accepts again
+        let mut user_b = users::get(&mut conn, "!ab000061").expect("user_b");
+        let replies = accept(&mut conn, &cfg, &mut user_b, vec!["invite accept", &pw2]);
+        let text = get_reply_text(&replies);
+        assert!(
+            text.contains("Invitation accepted"),
+            "Re-invite accept should succeed, got: {}",
+            text
+        );
+
+        // Verify both are on A's account again
+        let user_b_final = users::get(&mut conn, "!ab000061").expect("user_b");
+        assert_eq!(user_b_final.account_id(), account_a);
+        let nodes = users::get_nodes_for_account(&mut conn, account_a);
+        assert_eq!(nodes.len(), 2);
     }
 }

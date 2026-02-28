@@ -467,6 +467,26 @@ pub fn delete_account(conn: &mut SqliteConnection, account_id: i32) -> QueryResu
     diesel::delete(accounts_dsl::accounts.filter(accounts_dsl::id.eq(account_id))).execute(conn)
 }
 
+/// Create a new standalone account with default values.
+/// Used when a node leaves a multi-node account.
+pub fn create_standalone_account(conn: &mut SqliteConnection) -> Account {
+    let now = now_as_useconds();
+    let new_account = AccountNew {
+        username: None,
+        created_at_us: &now,
+        last_acted_at_us: Some(&now),
+        invite_allowed: false,
+    };
+    use validator::Validate as _;
+    new_account.validate().expect("new account should be valid");
+
+    diesel::insert_into(accounts::table)
+        .values(&new_account)
+        .returning(Account::as_returning())
+        .get_result(conn)
+        .expect("should be able to create a standalone account")
+}
+
 /// Update the user's username
 pub fn update_username(
     conn: &mut SqliteConnection,

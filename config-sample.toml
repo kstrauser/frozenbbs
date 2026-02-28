@@ -192,6 +192,13 @@ available = "always"
 func = "invite::accept"
 
 [[menus.Invite.commands]]
+arg = "INVITE LEAVE"
+help = "Leave your current multi-node account"
+pattern = "invite\\s+leave"
+available = "always"
+func = "invite::leave"
+
+[[menus.Invite.commands]]
 arg = "INVITE !node"
 help = "Send an invitation to a node"
 pattern = "invite\\s+(!\\S+)"
