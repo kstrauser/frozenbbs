@@ -357,6 +357,24 @@ pub fn send(
     .into()
 }
 
+/// Show a brief help listing all invitation subcommands.
+#[allow(clippy::needless_pass_by_value)]
+pub fn help(
+    _conn: &mut SqliteConnection,
+    _cfg: &BBSConfig,
+    _user: &mut User,
+    _args: Vec<&str>,
+) -> Replies {
+    let mut out = vec!["Invitation commands:".to_string()];
+    out.push("  invite block       - Block invitations to your account".to_string());
+    out.push("  invite unblock     - Allow invitations to your account".to_string());
+    out.push("  invite pending     - Show pending invitations".to_string());
+    out.push("  invite deny        - Deny a pending invitation".to_string());
+    out.push("  invite accept pw [migrate] - Accept a pending invitation".to_string());
+    out.push("  invite !node       - Send an invitation to a node".to_string());
+    out.into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1681,5 +1699,64 @@ mod tests {
     fn test_format_remaining_expired() {
         assert_eq!(format_remaining(0), "expired");
         assert_eq!(format_remaining(-1), "expired");
+    }
+
+    // ========== Help tests ==========
+
+    #[test]
+    fn test_help_lists_all_subcommands() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ff000001", false);
+
+        let replies = help(&mut conn, &cfg, &mut user, vec!["invite"]);
+        let text = get_reply_text(&replies);
+
+        assert!(
+            text.contains("block"),
+            "Help should mention block, got: {}",
+            text
+        );
+        assert!(
+            text.contains("unblock"),
+            "Help should mention unblock, got: {}",
+            text
+        );
+        assert!(
+            text.contains("pending"),
+            "Help should mention pending, got: {}",
+            text
+        );
+        assert!(
+            text.contains("deny"),
+            "Help should mention deny, got: {}",
+            text
+        );
+        assert!(
+            text.contains("accept"),
+            "Help should mention accept, got: {}",
+            text
+        );
+        assert!(
+            text.contains("!node"),
+            "Help should mention send syntax, got: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_help_includes_header() {
+        let mut conn = db::test_connection();
+        let cfg = test_config();
+        let mut user = create_test_user(&mut conn, "!ff000002", false);
+
+        let replies = help(&mut conn, &cfg, &mut user, vec!["invite"]);
+        let text = get_reply_text(&replies);
+
+        assert!(
+            text.contains("Invitation commands:"),
+            "Help should include header, got: {}",
+            text
+        );
     }
 }

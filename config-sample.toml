@@ -198,6 +198,13 @@ pattern = "invite\\s+(!\\S+)"
 available = "always"
 func = "invite::send"
 
+[[menus.Invite.commands]]
+arg = "INVITE"
+help = "Show invitation help"
+pattern = "invite"
+available = "always"
+func = "invite::help"
+
 [menus.Local]
 help_suffix = "L"
 
