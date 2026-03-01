@@ -1,5 +1,8 @@
 use super::Replies;
-use crate::db::{board_states, invitations, now_as_useconds, posts, queued_messages, users, User};
+use crate::db::{
+    board_states, invitations, invitations::EXPIRY_US, now_as_useconds, posts, queued_messages,
+    users, User,
+};
 use crate::{canonical_node_id, BBSConfig};
 use diesel::Connection as _;
 use diesel::SqliteConnection;
@@ -7,9 +10,6 @@ use rand::Rng;
 
 /// One hour in microseconds, used for rate limiting.
 const RATE_LIMIT_US: i64 = 3600 * 1_000_000;
-
-/// 24 hours in microseconds, used for expiry checks.
-const EXPIRY_US: i64 = 24 * 3600 * 1_000_000;
 
 const OPAQUE_REJECTION: &str = "This user is not accepting invitations.";
 const UNKNOWN_NODE: &str = "Unknown node.";

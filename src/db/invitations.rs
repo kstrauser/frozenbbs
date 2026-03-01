@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use validator::Validate as _;
 
 /// Invitations expire after 24 hours (in microseconds).
-const EXPIRY_US: i64 = 24 * 3600 * 1_000_000;
+pub const EXPIRY_US: i64 = 24 * 3600 * 1_000_000;
 
 /// Create a new invitation.
 pub fn create(
