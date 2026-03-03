@@ -127,6 +127,20 @@ pub fn before(
     Ok((post, make_user(conn, account)))
 }
 
+/// Get the most recent post by this account in this board.
+pub fn last_by_account_in_board(
+    conn: &mut SqliteConnection,
+    account_id: i32,
+    board_id: i32,
+) -> QueryResult<Post> {
+    posts_dsl::posts
+        .select(Post::as_select())
+        .filter(posts_dsl::account_id.eq(account_id))
+        .filter(posts_dsl::board_id.eq(board_id))
+        .order(posts_dsl::created_at_us.desc())
+        .first(conn)
+}
+
 /// Reassign all posts from one account to another.
 pub fn migrate_account(
     conn: &mut SqliteConnection,
@@ -153,6 +167,63 @@ mod tests {
     use crate::db::{self, boards, users};
     use std::thread::sleep;
     use std::time::Duration;
+
+    #[test]
+    fn duplicate_detected_same_body_same_board_same_account() {
+        let mut conn = db::test_connection();
+        let board =
+            boards::add(&mut conn, "General", "General discussion").expect("should create board");
+        let (user, _) = users::record(&mut conn, "!30000001").expect("user");
+
+        add(&mut conn, user.account_id(), board.id, "hello world").expect("first post");
+        sleep(Duration::from_micros(10));
+
+        let last = last_by_account_in_board(&mut conn, user.account_id(), board.id)
+            .expect("should find last post");
+        assert_eq!(last.body, "hello world");
+    }
+
+    #[test]
+    fn different_body_allowed() {
+        let mut conn = db::test_connection();
+        let board =
+            boards::add(&mut conn, "General", "General discussion").expect("should create board");
+        let (user, _) = users::record(&mut conn, "!30000002").expect("user");
+
+        add(&mut conn, user.account_id(), board.id, "hello world").expect("first post");
+        sleep(Duration::from_micros(10));
+
+        let last = last_by_account_in_board(&mut conn, user.account_id(), board.id)
+            .expect("should find last post");
+        assert_ne!(last.body, "different message");
+    }
+
+    #[test]
+    fn same_body_different_board_allowed() {
+        let mut conn = db::test_connection();
+        let board1 =
+            boards::add(&mut conn, "General", "General discussion").expect("board1");
+        let board2 =
+            boards::add(&mut conn, "Random", "Random chat").expect("board2");
+        let (user, _) = users::record(&mut conn, "!30000003").expect("user");
+
+        add(&mut conn, user.account_id(), board1.id, "hello world").expect("post in board1");
+        sleep(Duration::from_micros(10));
+
+        let result = last_by_account_in_board(&mut conn, user.account_id(), board2.id);
+        assert!(result.is_err(), "no post in board2 yet, so no duplicate");
+    }
+
+    #[test]
+    fn first_post_in_board_always_allowed() {
+        let mut conn = db::test_connection();
+        let board =
+            boards::add(&mut conn, "General", "General discussion").expect("should create board");
+        let (user, _) = users::record(&mut conn, "!30000004").expect("user");
+
+        let result = last_by_account_in_board(&mut conn, user.account_id(), board.id);
+        assert!(result.is_err(), "no posts yet, so no duplicate possible");
+    }
 
     #[test]
     fn fetches_skip_posts_from_jackass_users() {

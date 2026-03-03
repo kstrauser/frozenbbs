@@ -198,6 +198,8 @@ pub fn quick(
     NO_MORE_UNREAD.into()
 }
 
+const DUPLICATE_POST: &str = "This is an exact copy of your last post in this board.";
+
 /// Add a new post to the board.
 #[allow(clippy::needless_pass_by_value)]
 pub fn write(
@@ -212,6 +214,11 @@ pub fn write(
     let Some(body) = args.get(1) else {
         return ERROR_POSTING.into();
     };
+    if let Ok(last_post) = posts::last_by_account_in_board(conn, user.account_id(), in_board) {
+        if last_post.body == *body {
+            return DUPLICATE_POST.into();
+        }
+    }
     let Ok(post) = posts::add(conn, user.account_id(), in_board, body) else {
         log::error!("User {user} was unable to post {args:?} to {in_board}.");
         return ERROR_POSTING.into();
