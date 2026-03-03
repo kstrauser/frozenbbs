@@ -33,3 +33,6 @@ Cargo.lock
 # Zed
 .zed/
 
+# Factory AI
+.factory/
+
