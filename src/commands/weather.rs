@@ -67,6 +67,7 @@ fn fetch_weather(config: &WeatherConfig) -> Result<WeatherReport, WeatherError> 
         pairs.append_pair("latitude", &format!("{:.6}", config.latitude));
         pairs.append_pair("longitude", &format!("{:.6}", config.longitude));
         pairs.append_pair("current_weather", "true");
+        pairs.append_pair("timezone", "auto");
     }
 
     let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
@@ -269,7 +270,7 @@ mod tests {
             let mut buffer = [0_u8; 1024];
             let _ = stream.read(&mut buffer);
             let body = r#"{
-  "timezone": "Etc/UTC",
+  "timezone": "America/New_York",
   "current_weather": {
     "temperature": 12.3,
     "windspeed": 14.0,
@@ -304,7 +305,7 @@ mod tests {
             .any(|line| line.contains("Weather for Testville")));
         assert!(output
             .iter()
-            .any(|line| line.contains("Observed at 2025-02-15T12:00 Etc/UTC")));
+            .any(|line| line.contains("Observed at 2025-02-15T12:00 America/New_York")));
         assert!(output.iter().any(|line| line.contains("Partly cloudy")));
         assert!(output.iter().any(|line| line.contains("12.3°C")));
         assert!(output.iter().any(|line| line.contains("from 180° S")));
