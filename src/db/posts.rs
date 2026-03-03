@@ -12,6 +12,7 @@ fn make_user(conn: &mut SqliteConnection, account: Account) -> User {
     let node_result: QueryResult<Node> = nodes_dsl::nodes
         .select(Node::as_select())
         .filter(nodes_dsl::account_id.eq(account.id))
+        .order(nodes_dsl::id)
         .first(conn);
     match node_result {
         Ok(node) => User { account, node },

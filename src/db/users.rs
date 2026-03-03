@@ -330,12 +330,16 @@ pub fn recently_seen(
 
     let nodes: Vec<Node> = query.load(conn).expect("Error loading nodes");
 
-    // Deduplicate by account_id, keeping the first (most recently seen) node per account
+    // Deduplicate by account_id, keeping account ordering by most recently seen,
+    // but using the primary node (lowest id) for display.
     let mut seen_accounts = std::collections::HashSet::new();
     let mut result = Vec::new();
     for node in nodes {
         if seen_accounts.insert(node.account_id) {
-            result.push(make_user(conn, node));
+            result.push(
+                get_by_account_id(conn, node.account_id)
+                    .expect("account should exist for node"),
+            );
             #[allow(clippy::cast_possible_truncation)]
             if result.len() >= count as usize {
                 break;
@@ -365,7 +369,7 @@ pub fn recently_active(
         let mut node_query = nodes_dsl::nodes
             .select(Node::as_select())
             .filter(nodes_dsl::account_id.eq(account.id))
-            .order(nodes_dsl::last_seen_at_us.desc())
+            .order(nodes_dsl::id)
             .into_boxed();
 
         if let Some(node_id) = exclude_node_id {
@@ -599,24 +603,24 @@ mod tests {
         // Create second account with two nodes
         let (user2, _) = record(&mut conn, "!00000022").expect("second user");
         sleep(Duration::from_micros(10));
-        let node2b = add_node_to_account(&mut conn, user2.account.id, "!00000023");
+        let _node2b = add_node_to_account(&mut conn, user2.account.id, "!00000023");
 
-        // node2b was just created, so it's the most recently seen
+        // _node2b was just created, so it's the most recently seen
         // recently_seen should return only 2 accounts, not 3 nodes
         let seen = recently_seen(&mut conn, 10, None);
         assert_eq!(seen.len(), 2, "should return 2 accounts, not 3 nodes");
 
-        // The most recently seen node for account2 should be node2b
+        // Both accounts should appear
         let account_ids: Vec<i32> = seen.iter().map(|u| u.account.id).collect();
         assert!(account_ids.contains(&user1.account.id));
         assert!(account_ids.contains(&user2.account.id));
 
-        // Account2's entry should show node2b (most recently seen)
+        // Account2's entry should show the primary node (lowest id), not node2b
         let user2_entry = seen
             .iter()
             .find(|u| u.account.id == user2.account.id)
             .unwrap();
-        assert_eq!(user2_entry.node.node_id, node2b.node_id);
+        assert_eq!(user2_entry.node.node_id, user2.node.node_id);
     }
 
     #[test]
@@ -630,18 +634,18 @@ mod tests {
         // Create second account with two nodes
         let (user2, _) = record(&mut conn, "!00000032").expect("second user");
         sleep(Duration::from_micros(10));
-        let node2b = add_node_to_account(&mut conn, user2.account.id, "!00000033");
+        let _node2b = add_node_to_account(&mut conn, user2.account.id, "!00000033");
 
         // recently_active should return only 2 accounts, not 3 nodes
         let active = recently_active(&mut conn, 10, None);
         assert_eq!(active.len(), 2, "should return 2 accounts, not 3 nodes");
 
-        // The most recently seen node for account2 should be node2b
+        // Account2's entry should show the primary node (lowest id), not node2b
         let user2_entry = active
             .iter()
             .find(|u| u.account.id == user2.account.id)
             .unwrap();
-        assert_eq!(user2_entry.node.node_id, node2b.node_id);
+        assert_eq!(user2_entry.node.node_id, user2.node.node_id);
     }
 
     #[test]
