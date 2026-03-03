@@ -228,3 +228,13 @@ help = "Send an advertisement to the public channel."
 pattern = "la"
 available = "local"
 func = "sysop::advertise"
+
+[menus.Sysop]
+help_suffix = "!"
+
+[[menus.Sysop.commands]]
+arg = "!A"
+help = "Send an advertisement to the public channel."
+pattern = "!a"
+available = "sysop"
+func = "sysop::advertise"
