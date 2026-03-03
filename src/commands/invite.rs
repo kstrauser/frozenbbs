@@ -6,7 +6,7 @@ use crate::db::{
 use crate::{canonical_node_id, BBSConfig};
 use diesel::Connection as _;
 use diesel::SqliteConnection;
-use rand::Rng;
+use rand::RngExt;
 
 /// One hour in microseconds, used for rate limiting.
 const RATE_LIMIT_US: i64 = 3600 * 1_000_000;
