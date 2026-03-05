@@ -9,14 +9,14 @@ chrono = "0.4.44"
 clap = { version = "4.5.60", features = ["derive"] }
 config = { version = "0.15.19", default-features = false, features = ["toml", "preserve_order"] }
 diesel = { version = "2.3.6", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
-diesel_migrations = "2.2"
+diesel_migrations = "2.3"
 log = "0.4.29"
 meshtastic = "0.1.8"
 rand = "0.10"
 regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }
 simple_logger = "5.2.0"
-tokio = "1.49.0"
+tokio = "1.50.0"
 toml = "1.0"
 validator = { version = "0.20", features = ["derive"] }
 xdg = "3.0.0"
