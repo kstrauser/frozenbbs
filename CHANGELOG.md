@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — Changes since v1.4.4
+## [1.5.0] — Changes since v1.4.4
 
 ### Multi-Node Account System
 
@@ -19,8 +19,6 @@
 
 ### Bug Fixes
 
-- Fixed multi-node accounts displaying the wrong node name in user lists and posts.
-- Fixed the invite accept handler to correctly distinguish expired invitations from non-existent ones.
 - Fixed ping command letter casing.
 - Reject duplicate posts to prevent resubmission when radio connections are lost.
 
