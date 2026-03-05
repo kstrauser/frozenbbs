@@ -6,9 +6,9 @@ use regex::Regex;
 use std::fmt;
 use validator::Validate;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-static RE_NODE_ID: Lazy<Regex> = Lazy::new(|| Regex::new(r"^![0-9a-f]{8}$").unwrap());
+static RE_NODE_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^![0-9a-f]{8}$").unwrap());
 // This seems like a reasonable range to clamp timestamps to. Because we're dealing with
 // microseconds, it's good to enforce a plausible range so that things will blow up if we
 // inadvertently try to use seconds, milliseconds, or nanoseconds somewhere.

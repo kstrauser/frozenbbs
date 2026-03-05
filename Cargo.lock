@@ -713,7 +713,6 @@ dependencies = [
  "diesel_migrations",
  "log",
  "meshtastic",
- "once_cell",
  "rand 0.10.0",
  "regex",
  "serde",
