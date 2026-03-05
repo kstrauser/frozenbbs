@@ -5,6 +5,7 @@ pub mod db;
 pub mod paginate;
 pub mod server;
 use config::{Config, ConfigError, Map};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -79,11 +80,21 @@ pub fn config_path() -> PathBuf {
         .expect("Unable to create the config path")
 }
 
+pub fn menus_path() -> PathBuf {
+    config_path().with_file_name("menus.toml")
+}
+
 pub fn default_db_path() -> PathBuf {
     let xdg_dirs = xdg::BaseDirectories::with_prefix(BBS_TAG);
     xdg_dirs
         .place_data_file(format!("{BBS_TAG}.db"))
         .expect("Unable to create the database file path")
+}
+
+/// Helper struct for deserializing just the menus from menus.toml.
+#[derive(Debug, Deserialize)]
+struct MenusFile {
+    menus: Map<String, MenuConfig>,
 }
 
 pub fn config_load() -> Result<BBSConfig, ConfigError> {
@@ -93,7 +104,28 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
         .add_source(config::File::from(config_path.clone()).required(false))
         .build()?;
 
-    config.try_deserialize()
+    let mut cfg: BBSConfig = config.try_deserialize()?;
+
+    // If a separate menus.toml exists, it fully replaces any inline menus.
+    let menus_path = menus_path();
+    if menus_path.exists() {
+        let menus_content = std::fs::read_to_string(&menus_path).map_err(|e| {
+            ConfigError::Message(format!(
+                "Failed to read {}: {e}",
+                menus_path.display()
+            ))
+        })?;
+        let menus_file: MenusFile = toml::from_str(&menus_content).map_err(|e| {
+            ConfigError::Message(format!(
+                "Failed to parse {}: {e}",
+                menus_path.display()
+            ))
+        })?;
+        info!("Loaded menus from {}", menus_path.display());
+        cfg.menus = menus_file.menus;
+    }
+
+    Ok(cfg)
 }
 
 /// Describe this system.

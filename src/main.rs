@@ -1,7 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 use frozenbbs::{
-    admin, canonical_node_id, client, config_load, config_path, db, default_db_path, server,
-    FAKE_MY_ID,
+    admin, canonical_node_id, client, config_load, config_path, db, default_db_path, menus_path,
+    server, FAKE_MY_ID,
 };
 use log::LevelFilter;
 
@@ -193,6 +193,10 @@ async fn main() {
             Some(ConfigCommands::ConfigPath {}) => println!("{}", config_path().display()),
             Some(ConfigCommands::Dump {}) => {
                 let cfg = config_load().expect("the system should be configured");
+                let menus_path = menus_path();
+                if menus_path.exists() {
+                    println!("# Menus loaded from {}", menus_path.display());
+                }
                 println!(
                     "{}",
                     toml::to_string(&cfg)
