@@ -46,6 +46,7 @@ pub struct BBSConfig {
     public_channel: u32,
     ad_text: String,
     pub weather: Option<WeatherConfig>,
+    #[serde(default)]
     pub menus: Map<String, MenuConfig>,
     pub page_delay_ms: Option<u64>,
 }
