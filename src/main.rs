@@ -245,6 +245,7 @@ Edit \"{}\" to set it to your radio's node ID.
     }
 
     let conn = &mut db::establish_connection(&cfg);
+    db::check_pending_migrations(conn);
 
     // Use the passed-in node ID, if given, or else the node's own ID.
     let default_or = |node_id: &Option<String>| -> String {

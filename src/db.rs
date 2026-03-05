@@ -11,7 +11,10 @@ mod schema;
 use crate::BBSConfig;
 use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use validator::ValidationErrors;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 pub type Result<T> = std::result::Result<T, ValidationErrors>;
 
@@ -24,6 +27,20 @@ pub fn establish_connection(cfg: &BBSConfig) -> SqliteConnection {
         .batch_execute("PRAGMA foreign_keys = ON")
         .expect("should enable strict foreign key support in the database");
     connection
+}
+
+/// Check for pending database migrations and exit if any are found.
+pub fn check_pending_migrations(conn: &mut SqliteConnection) {
+    let pending = conn
+        .pending_migrations(MIGRATIONS)
+        .expect("should be able to check pending migrations");
+    if !pending.is_empty() {
+        log::error!(
+            "{} pending database migration(s) found. Please run: diesel migration run --database-url <path>",
+            pending.len()
+        );
+        std::process::exit(1);
+    }
 }
 
 /// Get the number of microseconds since the Unix epoch.
