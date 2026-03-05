@@ -265,6 +265,7 @@ These are the important parts of my BBS system. This is what I'd order if I had 
 
 # Releases
 
+- **v1.5.0, 2026-03-04:** Add multi-node accounts. Share one account among all your radios! Separate menu config out to its own separate `menus.toml` file. Removed unneeded features for must faster build times.
 - **v1.4.4, 2025-12-14:** Add a configurable delay between sending pages. Remove artificial board message, DM, and bio length limits. Add a ping command. Show boards that have unread messages.
 - **v1.4.3, 2025-10-10:** Add local weather conditions.
 - **v1.4.2, 2025-10-10:** Log replies at the info level. Switch from just to mise. Hide the BBS from recent and active user lists.
