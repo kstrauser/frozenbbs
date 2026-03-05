@@ -136,11 +136,11 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
 /// Describe this system.
 pub fn system_info(cfg: &BBSConfig) -> String {
     format!(
-        "{} is running {} v{}/{} built at {}.",
+        "{} is running {} v{} ({}) built at {}.",
         cfg.bbs_name,
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
-        env!("VERGEN_GIT_DESCRIBE"),
+        &env!("VERGEN_GIT_SHA")[..7],
         &env!("VERGEN_BUILD_TIMESTAMP").to_string()[..22],
     )
 }
@@ -182,7 +182,7 @@ mod tests {
 
         assert!(info.starts_with("Test BBS is running "));
         assert!(info.contains(env!("CARGO_PKG_VERSION")));
-        assert!(info.contains(env!("VERGEN_GIT_DESCRIBE")));
+        assert!(info.contains(&env!("VERGEN_GIT_SHA")[..7]));
         assert!(info.contains(" built at "));
     }
 }
