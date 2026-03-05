@@ -29,7 +29,6 @@ run = "cargo build --release"
 
 [tasks.install]
 description = "Install the release version"
-depends = ["build_release"]
 run = "cargo install --path ."
 
 # Development
