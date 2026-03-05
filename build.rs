@@ -1,4 +1,4 @@
-use vergen_git2::{BuildBuilder, Emitter, Git2Builder};
+use vergen_gix::{BuildBuilder, Emitter, GixBuilder};
 
 fn main() {
     let build = BuildBuilder::default()
@@ -6,11 +6,11 @@ fn main() {
         .use_local(true)
         .build()
         .unwrap();
-    let git2 = Git2Builder::all_git().unwrap();
+    let gix = GixBuilder::all_git().unwrap();
     Emitter::default()
         .add_instructions(&build)
         .unwrap()
-        .add_instructions(&git2)
+        .add_instructions(&gix)
         .unwrap()
         .emit()
         .unwrap();
