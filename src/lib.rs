@@ -5,7 +5,7 @@ pub mod db;
 pub mod paginate;
 pub mod server;
 use config::{Config, ConfigError, Map};
-use log::info;
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -124,6 +124,10 @@ pub fn config_load() -> Result<BBSConfig, ConfigError> {
         })?;
         info!("Loaded menus from {}", menus_path.display());
         cfg.menus = menus_file.menus;
+    }
+
+    if cfg.menus.is_empty() {
+        warn!("No menus configured. Check config.toml or menus.toml.");
     }
 
     Ok(cfg)
